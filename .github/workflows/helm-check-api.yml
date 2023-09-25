@@ -1,0 +1,87 @@
+name: Pluto - check api deprecated K8S
+
+on:
+  workflow_call:
+    inputs:
+      helm-path:
+        required: false
+        type: string
+        default: ./
+
+      k8s-version:
+        required: false
+        type: string
+        default: k8s=v1.27
+
+      pluto-ignore-deprecations:
+        required: false
+        type: boolean
+        default: false
+      
+      pluto-ignore-removals:
+        required: false
+        type: boolean
+        default: false
+      
+      pluto-output:
+        required: false
+        type: string
+        default: "markdown"
+      
+      pluto-columns:
+        required: false
+        type: string
+        default: ""
+            
+      pluto-no-headers:
+        required: false
+        type: boolean
+        default: true
+      
+      pluto-no-footer:
+        required: false
+        type: boolean
+        default: true
+      
+
+env:
+  TERM: xterm-256color
+
+jobs:
+  k8s-check-api:
+    permissions:
+      contents: read
+      id-token: write
+    runs-on: ubuntu-latest
+    env:
+      PLUTO_IGNORE_DEPRECATIONS: ${{ inputs.pluto-ignore-deprecations }}
+      PLUTO_IGNORE_REMOVALS: ${{ inputs.pluto-ignore-removals }}
+      PLUTO_TARGET_VERSIONS: ${{ inputs.k8s-version }}
+      PLUTO_OUTPUT: ${{ inputs.pluto-output }}
+      PLUTO_COLUMNS: ${{ inputs.pluto-columns }}
+      PLUTO_NO_HEADERS: ${{ inputs.pluto-no-headers }}
+      PLUTO_NO_FOOTER: ${{ inputs.pluto-no-footer }}
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: Install Pluto
+      uses: FairwindsOps/pluto/github-action@master
+
+    - name: Run Kubernetes API deprecations validation with Pluto
+      run: |
+        # Definiçao do diretório para pesquisar
+        dir=${{ inputs.helm-path }}
+
+        # Define the file name pattern to search for using regex
+        pattern=".*value.*\.\(yaml\|yml\)$"
+
+        # Procura arquivos com base no regex nos diretório e subdiretórios
+        for file in $(find $dir -regex $pattern -type f); do
+          # Recupera o diretório do arquivo
+          file_dir=$(dirname "$file")
+          echo ⎈⎈⎈ $file ⎈⎈⎈
+          # Executa o comando helm template + pluto no arquivo encontrado
+          helm template $file_dir -f $file | pluto detect -
+        done
+      shell: bash

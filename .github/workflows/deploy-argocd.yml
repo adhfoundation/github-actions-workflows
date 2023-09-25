@@ -1,0 +1,118 @@
+name: Deploy on ArgoCD
+
+on:
+  workflow_call:
+    inputs:
+      application-name:
+        required: true
+        type: string
+        description: Application title displayed on ArgoCD interface
+
+      argocd-destination-cluster:
+        required: true
+        type: string
+        description: K8s cluster to deploy
+
+      argocd-project:
+        required: true
+        type: string
+        description: ArgoCD Project
+
+      argocd-server-url:
+        required: true
+        type: string
+        description: ArgoCD server url
+
+      argocd-skip-sync:
+        required: false
+        type: boolean
+        description: Should skip sync step
+        default: false
+
+      argocd-sync-timeout:
+        required: false
+        type: string
+        description: ArgoCD sync timeout
+        default: "300"
+
+      chart-path:
+        required: true
+        type: string
+        description: Helm chart path
+
+      environment:
+        required: true
+        type: string
+        description: Environment
+
+      git-runner-container:
+        required: true
+        type: string
+        description: Github runner container
+
+      image-tag:
+        required: true
+        type: string
+        description: Docker image tag
+
+      namespace:
+        required: true
+        type: string
+        description: K8s namespace
+
+      revision:
+        required: false
+        type: string
+        description: Github ref
+        default: HEAD
+
+      repository-name:
+        required: true
+        type: string
+        description: Github repository name
+
+      run-migrations:
+        required: false
+        type: string
+        description: Whether run migrations before or after deploy
+        default: "pre-install,pre-upgrade"
+
+    secrets:
+      ARGOCD_AUTH_TOKEN:
+        required: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-22.04
+    container:
+      image: ${{ inputs.git-runner-container }}
+    env:
+      # Token to communicate via argocd cli
+      ARGOCD_AUTH_TOKEN: ${{ secrets.ARGOCD_AUTH_TOKEN }}
+    steps:
+      - name: Create/Update application on ArgoCD
+        shell: bash
+        run: |
+          argocd app create ${{ inputs.environment }}-${{ inputs.application-name }} \
+            --dest-namespace ${{ inputs.namespace }} \
+            --dest-server ${{ inputs.argocd-destination-cluster }} \
+            --helm-set image.tag=${{ inputs.image-tag }} \
+            --helm-set run_migrations=${{ inputs.run-migrations }} \
+            --path ${{ inputs.chart-path }} \
+            --project ${{ inputs.argocd-project }} \
+            --repo git@github.com:${{ inputs.repository-name }} \
+            --server ${{ inputs.argocd-server-url }} \
+            --upsert \
+            --revision ${{ inputs.revision }} \
+            --values values-${{ inputs.environment }}.yaml
+
+      - name: Run Sync on ArgoCD
+        if: inputs.argocd-skip-sync == false
+        shell: bash
+        run: |
+          argocd app sync ${{ inputs.environment }}-${{ inputs.application-name }} \
+            --server ${{ inputs.argocd-server-url }} \
+            --force \
+            --prune \
+            --retry-limit 3 \
+            --timeout ${{ inputs.argocd-sync-timeout }}
