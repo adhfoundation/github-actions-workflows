@@ -11,14 +11,14 @@ on:
         required: true
         type: string
         description: AWS Region
-      efs-dns:
-        required: true
-        type: string
-        description: ECR url to push images
       path-to-sync:
         required: true
         type: string
         description: Local path orin to sync
+
+    secrets:
+      EFS_DNS:
+        required: true
 
 jobs:
 
@@ -44,7 +44,7 @@ jobs:
       - name: Mount EFS
         run: |
           sudo mkdir -p /mnt/efs
-          sudo mount -t nfs4 -o nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2 ${{ inputs.efs-dns }}:/ /mnt/efs
+          sudo mount -t nfs4 -o nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2 ${{ secrets.EFS_DNS }}:/ /mnt/efs
 
       - name: Sync files to EFS
         run: |
