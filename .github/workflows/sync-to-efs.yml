@@ -1,0 +1,54 @@
+name: Sync to EFS
+
+on:
+  workflow_call:
+    inputs:
+      aws-creds-role-to-assume:
+        required: true
+        type: string
+        description: Role arn to assume without aws credentials
+      aws-region:
+        required: true
+        type: string
+        description: AWS Region
+      efs-dns:
+        required: true
+        type: string
+        description: ECR url to push images
+      path-to-sync:
+        required: true
+        type: string
+        description: Local path orin to sync
+
+jobs:
+
+  build:
+    runs-on: ubuntu-22.04
+
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2.1.0
+        with:
+          role-to-assume: ${{ inputs.aws-creds-role-to-assume }}
+          aws-region: ${{ inputs.aws-region }}
+
+      - name: Install NFS client
+        run: sudo apt-get install -y nfs-common
+
+      - name: Mount EFS
+        run: |
+          sudo mkdir -p /mnt/efs
+          sudo mount -t nfs4 -o nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2 ${{ inputs.efs-dns }}:/ /mnt/efs
+
+      - name: Sync files to EFS
+        run: |
+          rsync -av ./${{ inputs.path-to-sync }} /mnt/efs/
+
+      - name: Unmount EFS
+        run: sudo umount /mnt/efs
