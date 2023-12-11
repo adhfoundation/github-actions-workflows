@@ -1,0 +1,29 @@
+name: Desligar Máquina Virtual na AWS
+#Workflow para desligar uma maquina na AWS depois do Deploy Automatizado
+
+on:
+  workflow_call:
+    inputs:
+      aws-region:
+        required: true
+        type: string
+      instance-id:
+        required: true
+        type: string
+      aws-creds-role-to-assume:
+        required: true
+        type: string
+
+jobs:
+  terminate-vm:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configurar AWS CLI
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ inputs.aws-region }}
+
+      - name: Terminar Instância EC2
+        run: aws ec2 terminate-instances --instance-ids ${{ inputs.instance-id }}

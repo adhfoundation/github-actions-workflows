@@ -1,0 +1,39 @@
+name: Provisionar Máquina Virtual na AWS Ec2 
+#Workflow para deploy de um host ec2 dentro do ambiente da conta AWS
+
+on:
+  workflow_call:
+    inputs:
+      aws-region:
+        required: true
+        type: string
+      instance-type:
+        required: true
+        type: string
+      image-id:
+        required: true
+        type: string
+      aws-creds-role-to-assume:
+        required: true
+        type: string
+
+jobs:
+  provision-vm:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configurar AWS CLI
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ inputs.aws-region }}
+
+      - name: Provisionar Instância EC2
+        run: |
+          INSTANCE_ID=$(aws ec2 run-instances \
+            --image-id ${{ inputs.image-id }} \
+            --instance-type ${{ inputs.instance-type }} \
+            --query 'Instances[0].InstanceId' \
+            --output text)
+          echo "Instance ID: $INSTANCE_ID"
+          echo "INSTANCE_ID=$INSTANCE_ID" >> $GITHUB_ENV
