@@ -49,6 +49,10 @@ on:
         required: false
       REQUIREMENTS:
         required: false
+      NEXT_PUBLIC_PORTAL_AFYA_API_BASE_URL:
+        required: false
+      NEXT_PUBLIC_BFF_AFYA_API_BASE_URL:
+        required: false
 
 jobs:
 
