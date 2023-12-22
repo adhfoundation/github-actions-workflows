@@ -96,3 +96,5 @@ jobs:
             GH_ACCESS_TOKEN=${{ secrets.GH_ACCESS_TOKEN }}
             PIP_EXTRA_INDEX_URL=${{ secrets.PIP_EXTRA_INDEX_URL }}
             REQUIREMENTS=${{ secrets.REQUIREMENTS }}
+            NEXT_PUBLIC_PORTAL_AFYA_API_BASE_URL: ${{ secrets.NEXT_PUBLIC_PORTAL_AFYA_API_BASE_URL }}
+            NEXT_PUBLIC_BFF_AFYA_API_BASE_URL: ${{ secrets.NEXT_PUBLIC_BFF_AFYA_API_BASE_URL }}
