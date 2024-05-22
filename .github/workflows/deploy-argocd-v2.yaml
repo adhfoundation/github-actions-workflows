@@ -1,0 +1,118 @@
+name: Deploy on ArgoCD
+
+on:
+  workflow_call:
+    inputs:
+      additional-helm-set-values:
+        required: false
+        type: string
+        description: Additional helm set parameters. Normally used to overrride
+
+      argocd-sync-options:
+        required: false
+        type: string
+        description: ArgoCD sync options. Can be multiple options with multi-line string
+
+      argocd-skip-sync:
+        required: false
+        type: boolean
+        description: Should skip sync step
+        default: false
+
+      argocd-sync-timeout:
+        required: false
+        type: string
+        description: ArgoCD sync timeout
+        default: "300"
+
+      chart-path:
+        required: false
+        type: string
+        description: Helm chart path
+        default: "chart"
+
+      environment:
+        required: true
+        type: string
+        description: Environment
+
+      git-runner-container:
+        required: false
+        type: string
+        description: Github runner container
+        default: "deviclinic/ci-argocd:2.9.0"
+
+      image-tag:
+        required: true
+        type: string
+        description: Docker image tag
+
+      revision:
+        required: false
+        type: string
+        description: Github ref
+        default: HEAD
+
+      runs-on:
+        required: false
+        type: string
+        description: OS machine
+        default: "ubuntu-22.04"
+
+      run-migrations:
+        required: false
+        type: string
+        description: Whether run migrations before or after deploy
+        default: "pre-install,pre-upgrade"
+
+      values-file:
+        required: false
+        type: string
+        description: Values yaml file
+        default: "values.yaml"
+    secrets:
+      ARGOCD_AUTH_TOKEN:
+        required: true
+
+jobs:
+  deploy:
+    runs-on: ${{ inputs.runs-on }}
+    environment: ${{ inputs.environment }}
+    container:
+      image: ${{ inputs.git-runner-container }}
+    env:
+      APP_NAME: ${{ inputs.environment }}-${{ github.event.repository.name }}
+      NAMESPACE: ${{ github.event.repository.name }}
+    steps:
+      - name: Create/Update application on ArgoCD
+        shell: bash
+        run: |
+          argocd app create ${{ env.APP_NAME }} \
+            --dest-namespace ${{ env.NAMESPACE }} \
+            --dest-server ${{ vars.ARGOCD_DESTINATION_CLUSTER }} \
+            --helm-set image.tag=${{ inputs.image-tag }} \
+            --helm-set run_migrations=${{ inputs.run-migrations }} \
+            --path ${{ inputs.chart-path }} \
+            --project ${{ vars.ARGOCD_PROJECT }} \
+            --repo git@github.com:${{ github.repository }} \
+            --server ${{ vars.ARGOCD_SERVER_URL }} \
+            --upsert \
+            --revision ${{ inputs.revision }} \
+            ${{ inputs.additional-helm-set-values }} \
+            ${{ inputs.argocd-sync-options }} \
+            --http-retry-max 3 \
+            --grpc-web \
+            --auth-token ${{ secrets.ARGOCD_AUTH_TOKEN }} \
+            --values values-${{ inputs.environment }}.yaml
+
+      - name: Run Sync on ArgoCD
+        if: inputs.argocd-skip-sync == false
+        shell: bash
+        run: |
+          argocd app sync ${{ env.APP_NAME }} \
+            --server ${{ vars.ARGOCD_SERVER_URL }} \
+            --force \
+            --retry-limit 3 \
+            --grpc-web \
+            --auth-token ${{ secrets.ARGOCD_AUTH_TOKEN }} \
+            --timeout ${{ inputs.argocd-sync-timeout }}
