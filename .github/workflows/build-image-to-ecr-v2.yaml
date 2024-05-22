@@ -66,10 +66,10 @@ jobs:
           role-to-assume: ${{ vars.AWS_CREDS_ROLE_TO_ASSUME }}
           aws-region: ${{ vars.AWS_REGION }}
 
-      - name: Login to ECR ${{ vars.AWS_ECR_URL }}
+      - name: Login to ECR ${{ vars.ECR_URL }}
         uses: docker/login-action@v3
         with:
-          registry: ${{ vars.AWS_ECR_URL }}
+          registry: ${{ vars.ECR_URL }}
 
       - name: Build image
         uses: docker/build-push-action@v5
@@ -81,8 +81,8 @@ jobs:
           target: ${{ inputs.docker-build-target }}
           file: ${{ inputs.docker-file-path }}
           tags: |
-            ${{ vars.AWS_ECR_URL }}/${{ vars.ECR_REPO }}:latest
-            ${{ vars.AWS_ECR_URL }}/${{ vars.ECR_REPO }}:${{ inputs.docker-tag }}
+            ${{ vars.ECR_URL }}/${{ vars.ECR_REPO }}:latest
+            ${{ vars.ECR_URL }}/${{ vars.ECR_REPO }}:${{ inputs.docker-tag }}
           build-args: |
             GH_ACCESS_TOKEN=${{ secrets.GH_ACCESS_TOKEN }}
             PIP_EXTRA_INDEX_URL=${{ secrets.PIP_EXTRA_INDEX_URL }}
