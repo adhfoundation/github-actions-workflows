@@ -8,6 +8,12 @@ on:
         type: string
         description: Additional helm set parameters. Normally used to overrride
 
+      app-name:
+        required: false
+        type: string
+        description: Application name
+        default: "${{ github.event.repository.name }}"
+
       argocd-sync-options:
         required: false
         type: string
@@ -70,6 +76,7 @@ on:
         type: string
         description: Values yaml file
         default: "values.yaml"
+     
     secrets:
       ARGOCD_AUTH_TOKEN:
         required: true
@@ -81,8 +88,8 @@ jobs:
     container:
       image: ${{ inputs.git-runner-container }}
     env:
-      APP_NAME: ${{ inputs.environment }}-${{ github.event.repository.name }}
-      NAMESPACE: ${{ github.event.repository.name }}
+      APP_NAME: ${{ inputs.environment }}-${{ inputs.app-name }}
+      NAMESPACE: ${{ inputs.app-name }}
     steps:
       - name: Create/Update application on ArgoCD
         shell: bash
