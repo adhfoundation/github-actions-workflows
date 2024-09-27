@@ -20,7 +20,6 @@ on:
 
 jobs:
   check-pr-description:
-    if: github.base_ref == 'staging' && github.head_ref == 'dev-teste'
     runs-on: ubuntu-latest
 
     steps:
