@@ -9,6 +9,11 @@ on:
         description: Uma string que possivelmente contém o issue no Jira. Pode ser o nome da branch, o título do PR, etc. O padrão é o nome da branch.
         default: ""
         type: string
+      GITHUB_EVENT:
+        description: Numero do PR.
+        default: ""
+        type: string
+        required: true
     secrets:
       JIRA_BASE_URL:
         required: true
