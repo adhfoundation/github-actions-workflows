@@ -1,30 +1,18 @@
 name: Check PR Description and Jira Task Status
 
-
 on:
   workflow_call:
-
     inputs:
-      possible_issue_reference:
-        description: Uma string que possivelmente contém o issue no Jira. Pode ser o nome da branch, o título do PR, etc. O padrão é o nome da branch.
-        default: ""
+      base_ref:
+        required: true
         type: string
-      PR_NUMBER:
-        description: Numero do PR.
-        default: ""
+      head_ref:
+        required: true
         type: string
-        required: true
-    secrets:
-      JIRA_BASE_URL:
-        required: true
-      JIRA_USER_EMAIL:
-        required: true
-      JIRA_API_TOKEN:
-        required: true
-
 
 jobs:
   check-pr-description:
+    if: inputs.base_ref == 'staging' && inputs.head_ref == 'dev-teste'
     runs-on: ubuntu-latest
 
     steps:
@@ -35,11 +23,10 @@ jobs:
         id: check_description
         run: |
           pr_description=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            https://api.github.com/repos/${{ github.repository }}/pulls/${{ PR_NUMBER }} | jq -r '.body')
+            https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.number }} | jq -r '.body')
 
           echo "Descrição do PR: $pr_description"
 
-          # Encontrar todas as ocorrências de RMP-0000
           rmp_tasks=($(echo "$pr_description" | grep -o -E 'RMP-[0-9]{4}'))
 
           if [ ${#rmp_tasks[@]} -gt 0 ]; then
@@ -64,14 +51,12 @@ jobs:
           IFS=' ' read -r -a rmp_tasks <<< "${{ env.rmp_tasks }}"
           
           for rmp_task in "${rmp_tasks[@]}"; do
-            jira_task_url="${{ secrets.JIRA_BASE_URL }}/rest/api/3/issue/${rmp_task}"
+            jira_task_url="${{ secrets.JIRA_BASE_URL_GLIC }}/rest/api/3/issue/${rmp_task}"
 
-            # Fazendo a requisição para o Jira
-            jira_response=$(curl -s -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+            jira_response=$(curl -s -u "${{ secrets.JIRA_EMAIL_GLIC }}:${{ secrets.JIRA_API_TOKEN_TOKEN }}" \
               -H "Content-Type: application/json" \
               "$jira_task_url")
 
-            # Capturando o status da task no Jira
             jira_status=$(echo "$jira_response" | jq -r '.fields.status.name')
 
             echo "Status da Task $rmp_task no Jira: $jira_status"
