@@ -11,11 +11,11 @@ on:
         type: string
     secrets:
       JIRA_BASE_URL:
-        required: false
+        required: true
       JIRA_USER_EMAIL:
-        required: false
+        required: true
       JIRA_API_TOKEN:
-        required: false
+        required: true
 
 
 jobs:
