@@ -27,7 +27,7 @@ jobs:
 
       - name: Debug Token
         run: |
-          if [ -z "${{ inputs.GH_ACCESS_TOKEN }}" ]; then
+          if [ -z "${{ secrets.GITHUB_TOKEN }}" ]; then
             echo "Token is empty"
           else
             echo "Token is set"
