@@ -3,7 +3,7 @@ name: Reusable Workflow to Check PR Description and Jira Task Status
 on:
   workflow_call:
     inputs:
-      github_token:
+      git_token:
         description: 'GitHub token to access the PR description.'
         required: true
         type: string
@@ -20,7 +20,7 @@ on:
         required: true
         type: string
     secrets:
-      github_token:
+      git_token:
         required: true
 
 jobs:
@@ -34,7 +34,7 @@ jobs:
       - name: Get PR description
         id: get_description
         run: |
-          pr_description=$(curl -s -H "Authorization: token ${{ inputs.github_token }}" \
+          pr_description=$(curl -s -H "Authorization: token ${{ inputs.git_token }}" \
             https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.number }} | jq -r '.body')
 
           echo "Descrição do PR: $pr_description"
