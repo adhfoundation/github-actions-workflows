@@ -35,7 +35,7 @@ jobs:
 
       - name: List All PRs (debugging)
         run: |
-          curl -s -H "Authorization: token ${{ inputs.GH_ACCESS_TOKEN }}" \
+          curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
             https://api.github.com/repos/${{ github.repository }}/pulls
 
 
