@@ -60,17 +60,19 @@ jobs:
           # Variável para verificar se todas as tarefas estão no status correto
           all_tasks_ready=true
 
+          # Loop para verificar o status de cada tarefa no Jira
           for rmp_task in "${rmp_tasks[@]}"; do
             jira_task_url="${{ inputs.jira_base_url }}/rest/api/3/issue/${rmp_task}"
 
+            echo "Verificando a URL $jira_task_url"
+
             jira_response=$(curl -s -u "${{ inputs.jira_email }}:${{ inputs.jira_api_token }}" \
               -H "Content-Type: application/json" \
-              "${{ inputs.jira_task_url }}")
-        
+              "$jira_task_url")
+
             jira_status=$(echo "$jira_response" | jq -r '.fields.status.name')
 
-            echo "Verificando a url $jira_task_url"
-            echo "Status da Task $rmp_task no Jira: ${{ inputs.jira_status }}"
+            echo "Status da Task $rmp_task no Jira: $jira_status"
 
             # Se o status não for "Ready for Deployment", mudar a variável para false
             if [[ "$jira_status" != "Ready for Deployment" ]]; then
