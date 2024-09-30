@@ -66,9 +66,9 @@ jobs:
 
             echo "Verificando a URL $jira_task_url"
 
-            jira_response=$(curl -s -u "${{ inputs.jira_email }}:${{ inputs.jira_api_token }}" \
+            jira_response=$(curl -s -u "${{ secrets.jira_email }}:${{ secrets.jira_api_token }}" \
               -H "Content-Type: application/json" \
-              "$jira_task_url")
+              "${{ secrets.jira_task_url }}")
 
             jira_status=$(echo "$jira_response" | jq -r '.fields.status.name')
 
