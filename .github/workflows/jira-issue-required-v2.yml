@@ -62,7 +62,7 @@ jobs:
 
           # Loop para verificar o status de cada tarefa no Jira
           for rmp_task in "${rmp_tasks[@]}"; do
-            jira_task_url="{{ secrets.jira_base_url }}/rest/api/3/issue/${rmp_task}"
+            jira_task_url="${{ secrets.jira_base_url }}/rest/api/3/issue/${rmp_task}"
 
             echo "Verificando a URL $jira_task_url"
 
