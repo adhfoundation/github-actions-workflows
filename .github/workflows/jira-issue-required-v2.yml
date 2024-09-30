@@ -6,19 +6,15 @@ on:
       repo_token:  # Nome alterado para evitar conflito com a variável reservada
         description: 'GitHub token to access the PR description.'
         required: true
-        type: string
       jira_base_url:
         description: 'Base URL for Jira instance.'
         required: true
-        type: string
       jira_email:
         description: 'Email for Jira API authentication.'
         required: true
-        type: string
       jira_api_token:
         description: 'API token for Jira authentication.'
         required: true
-        type: string
 
 jobs:
   check-pr-description:
