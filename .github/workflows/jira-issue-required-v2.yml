@@ -3,7 +3,7 @@ name: Reusable Workflow to Check PR Description and Jira Task Status
 on:
   workflow_call:
     secrets:
-      repo_token:  # Nome alterado para evitar conflito com a variável reservada
+      GH_ACCESS_TOKEN:  # Nome alterado para evitar conflito com a variável reservada
         description: 'GitHub token to access the PR description.'
         required: true
       jira_base_url:
@@ -27,7 +27,7 @@ jobs:
 
       - name: Debug Token
         run: |
-          if [ -z "${{ inputs.repo_token }}" ]; then
+          if [ -z "${{ inputs.GH_ACCESS_TOKEN }}" ]; then
             echo "Token is empty"
           else
             echo "Token is set"
@@ -35,14 +35,14 @@ jobs:
 
       - name: List All PRs (debugging)
         run: |
-          curl -s -H "Authorization: token ${{ inputs.repo_token }}" \
+          curl -s -H "Authorization: token ${{ inputs.GH_ACCESS_TOKEN }}" \
             https://api.github.com/repos/${{ github.repository }}/pulls
 
 
       - name: Get PR description
         id: get_description
         run: |
-          pr_description=$(curl -s -H "Authorization: token ${{ inputs.repo_token }}" \
+          pr_description=$(curl -s -H "Authorization: token ${{ inputs.GH_ACCESS_TOKEN }}" \
             https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.number }} | jq -r '.body')
 
           echo "Descrição do PR: $pr_description"
