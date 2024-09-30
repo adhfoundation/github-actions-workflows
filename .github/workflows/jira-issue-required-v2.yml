@@ -65,12 +65,12 @@ jobs:
 
             jira_response=$(curl -s -u "${{ inputs.jira_email }}:${{ inputs.jira_api_token }}" \
               -H "Content-Type: application/json" \
-              "$jira_task_url")
+              "${{ $jira_task_url }}")
         
             jira_status=$(echo "$jira_response" | jq -r '.fields.status.name')
 
             echo "Verificando a url $jira_task_url"
-            echo "Status da Task $rmp_task no Jira: $jira_status"
+            echo "Status da Task $rmp_task no Jira: ${{ $jira_status }}"
 
             # Se o status não for "Ready for Deployment", mudar a variável para false
             if [[ "$jira_status" != "Ready for Deployment" ]]; then
