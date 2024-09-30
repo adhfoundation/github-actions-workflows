@@ -23,7 +23,16 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-      
+
+
+      - name: Debug Token
+        run: |
+          if [ -z "${{ inputs.repo_token }}" ]; then
+            echo "Token is empty"
+          else
+            echo "Token is set"
+          fi
+
       - name: List All PRs (debugging)
         run: |
           curl -s -H "Authorization: token ${{ inputs.repo_token }}" \
