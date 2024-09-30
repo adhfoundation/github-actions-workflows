@@ -74,3 +74,9 @@ jobs:
               exit 1
             fi
           done
+      
+      - name: List All PRs (debugging)
+        run: |
+          curl -s -H "Authorization: token ${{ inputs.repo_token }}" \
+            https://api.github.com/repos/${{ github.repository }}/pulls
+
