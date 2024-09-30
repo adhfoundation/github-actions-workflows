@@ -56,6 +56,9 @@ jobs:
         id: check_jira_task
         run: |
           IFS=' ' read -r -a rmp_tasks <<< "${{ env.rmp_tasks }}"
+          
+          # Variável para verificar se todas as tarefas estão no status correto
+          all_tasks_ready=true
 
           for rmp_task in "${rmp_tasks[@]}"; do
             jira_task_url="${{ inputs.jira_base_url }}/rest/api/3/issue/${rmp_task}"
@@ -68,10 +71,18 @@ jobs:
 
             echo "Status da Task $rmp_task no Jira: $jira_status"
 
-            if [[ "$jira_status" == "Ready for Deployment" ]]; then
-              echo "A tarefa $rmp_task está fechada."
-            else
+            # Se o status não for "Ready for Deployment", mudar a variável para false
+            if [[ "$jira_status" != "Ready for Deployment" ]]; then
               echo "Erro: A tarefa $rmp_task não está fechada. Status atual: $jira_status"
-              exit 1
+              all_tasks_ready=false
             fi
           done
+
+          # Se alguma tarefa não estiver pronta para deployment, falhar o job
+          if [[ "$all_tasks_ready" == "false" ]]; then
+            echo "Erro: Uma ou mais tarefas não estão prontas para deployment."
+            exit 1
+          else
+            echo "Todas as tarefas estão prontas para deployment."
+          fi
+
