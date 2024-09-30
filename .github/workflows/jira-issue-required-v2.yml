@@ -2,7 +2,7 @@ name: Reusable Workflow to Check PR Description and Jira Task Status
 
 on:
   workflow_call:
-    inputs:
+    secrets:
       repo_token:  # Nome alterado para evitar conflito com a variável reservada
         description: 'GitHub token to access the PR description.'
         required: true
