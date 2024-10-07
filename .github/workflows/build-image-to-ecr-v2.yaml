@@ -67,13 +67,12 @@ jobs:
           role-to-assume: ${{ vars.AWS_CREDS_ROLE_TO_ASSUME }}
           aws-region: ${{ vars.AWS_REGION }}
 
-      - name: Login to Public ECR ${{ vars.ECR_URL }}
+      - name: Login to Amazon ECR Public
         if: inputs.public-repository == true
-        uses: docker/login-action@v3
+        id: login-ecr-public
+        uses: aws-actions/amazon-ecr-login@v2
         with:
-          registry: ${{ vars.ECR_URL }}
-          username: ${{ env.AWS_ACCESS_KEY_ID }}
-          password: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          registry-type: public
 
       - name: Login to Private ECR ${{ vars.ECR_URL }}
         if: inputs.public-repository == false
