@@ -29,6 +29,11 @@ on:
         required: true
         type: string
         description: Environment
+      public-repository:
+        required: false
+        type: boolean
+        description: Is the repository public?
+        default: false
     secrets:
       GH_ACCESS_TOKEN:
         required: false
@@ -62,7 +67,16 @@ jobs:
           role-to-assume: ${{ vars.AWS_CREDS_ROLE_TO_ASSUME }}
           aws-region: ${{ vars.AWS_REGION }}
 
-      - name: Login to ECR ${{ vars.ECR_URL }}
+      - name: Login to Public ECR ${{ vars.ECR_URL }}
+        if: inputs.public-repository == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ vars.ECR_URL }}
+          username: ${{ vars.AWS_ACCESS_KEY_ID }}
+          password: ${{ vars.AWS_SECRET_ACCESS_KEY }}
+
+      - name: Login to Private ECR ${{ vars.ECR_URL }}
+        if: inputs.public-repository == 'false'
         uses: docker/login-action@v3
         with:
           registry: ${{ vars.ECR_URL }}
