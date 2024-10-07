@@ -68,7 +68,7 @@ jobs:
           aws-region: ${{ vars.AWS_REGION }}
 
       - name: Login to Public ECR ${{ vars.ECR_URL }}
-        if: inputs.public-repository == 'true'
+        if: ${{ inputs.public-repository == 'true' }}
         uses: docker/login-action@v3
         with:
           registry: ${{ vars.ECR_URL }}
@@ -76,7 +76,7 @@ jobs:
           password: ${{ vars.AWS_SECRET_ACCESS_KEY }}
 
       - name: Login to Private ECR ${{ vars.ECR_URL }}
-        if: inputs.public-repository == 'false'
+        if: ${{ inputs.public-repository == 'false' }}
         uses: docker/login-action@v3
         with:
           registry: ${{ vars.ECR_URL }}
