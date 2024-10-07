@@ -72,8 +72,8 @@ jobs:
         uses: docker/login-action@v3
         with:
           registry: ${{ vars.ECR_URL }}
-          username: ${{ vars.AWS_ACCESS_KEY_ID }}
-          password: ${{ vars.AWS_SECRET_ACCESS_KEY }}
+          username: ${{ env.AWS_ACCESS_KEY_ID }}
+          password: ${{ env.AWS_SECRET_ACCESS_KEY }}
 
       - name: Login to Private ECR ${{ vars.ECR_URL }}
         if: inputs.public-repository == false
