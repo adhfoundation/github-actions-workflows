@@ -59,6 +59,12 @@ on:
         type: string
         description: Docker image tag
 
+      revision:
+        required: false
+        type: string
+        description: Github ref
+        default: ${{ github.head_ref || github.ref_name }}
+
       runs-on:
         required: false
         type: string
@@ -97,16 +103,6 @@ jobs:
       APP_NAME: ${{ inputs.environment }}-${{ inputs.app-name }}-${{ inputs.preview-number }}
       NAMESPACE: ${{ inputs.app-name }}
     steps:
-      - name: Extract branch
-        run: echo "branch=$(echo ${GITHUB_REF#refs/*/})" >> $GITHUB_OUTPUT
-        id: extract_branch
-
-      - name: Format branch name
-        run: echo "branch_name=${BRANCH//\//_}" >> $GITHUB_OUTPUT
-        id: branch
-        env:
-          BRANCH: ${{ steps.extract_branch.outputs.branch }}
-
       - name: Create/Update application on ArgoCD
         shell: bash
         run: |
@@ -120,7 +116,7 @@ jobs:
             --repo git@github.com:${{ github.repository }} \
             --server ${{ vars.ARGOCD_SERVER_URL }} \
             --upsert \
-            --revision ${{ steps.branch.outputs.branch_name }} \
+            --revision ${{ inputs.revision }} \
             ${{ inputs.additional-helm-set-values }} \
             ${{ inputs.argocd-sync-options }} \
             --http-retry-max 3 \
