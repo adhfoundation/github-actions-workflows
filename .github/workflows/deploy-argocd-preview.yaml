@@ -84,7 +84,7 @@ on:
         default: "values.yaml"
 
       preview-number:
-        required: true
+        required: false
         type: string
         description: Preview number
         default: "${{ github.event.number }}"
