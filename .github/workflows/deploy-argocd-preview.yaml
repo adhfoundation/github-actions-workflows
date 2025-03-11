@@ -71,12 +71,6 @@ on:
         description: OS machine
         default: "ubuntu-22.04"
 
-      run-migrations:
-        required: false
-        type: string
-        description: Whether run migrations before or after deploy
-        default: "pre-install,pre-upgrade"
-
       values-file:
         required: false
         type: string
@@ -110,7 +104,6 @@ jobs:
             --dest-namespace ${{ env.NAMESPACE }} \
             --dest-server ${{ vars.ARGOCD_DESTINATION_CLUSTER }} \
             --helm-set image.tag=${{ inputs.image-tag }} \
-            --helm-set run_migrations=${{ inputs.run-migrations }} \
             --path ${{ inputs.chart-path }} \
             --project ${{ vars.ARGOCD_PROJECT }} \
             --repo git@github.com:${{ github.repository }} \
