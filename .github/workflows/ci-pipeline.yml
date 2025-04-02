@@ -34,10 +34,12 @@ on:
         required: true
         type: string
         description: Docker build context
+        default: '.'
       docker-file-path:
         required: true
         type: string
         description: Path to the Dockerfile
+        default: 'Dockerfile'
       environment:
         required: true
         type: string
