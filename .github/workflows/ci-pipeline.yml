@@ -89,7 +89,7 @@ jobs:
 
   build:
     needs: determine-release-version
-    uses: ./.github/workflows/build-image-to-ecr-v2.yml
+    uses: ./.github/workflows/build-image-to-ecr-v2.yaml
     with:
       docker-build-args: ${{ inputs.docker-build-args }}
       docker-build-target: ${{ inputs.docker-build-target }}
