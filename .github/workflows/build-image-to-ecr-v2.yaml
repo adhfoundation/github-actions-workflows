@@ -84,14 +84,14 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           push: true
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
           context: ${{ inputs.docker-build-context }}
           target: ${{ inputs.docker-build-target }}
           file: ${{ inputs.docker-file-path }}
           tags: |
             ${{ vars.ECR_URL }}/${{ vars.ECR_REPO }}:latest
             ${{ vars.ECR_URL }}/${{ vars.ECR_REPO }}:${{ inputs.docker-tag }}
+          cache-from: type=registry,ref=${{ vars.ECR_URL }}/${{ vars.ECR_REPO }}:buildcache
+          cache-to: type=registry,ref=${{ vars.ECR_URL }}/${{ vars.ECR_REPO }}:buildcache,mode=max
           build-args: |
             GH_ACCESS_TOKEN=${{ secrets.GH_ACCESS_TOKEN }}
             PIP_EXTRA_INDEX_URL=${{ secrets.PIP_EXTRA_INDEX_URL }}
