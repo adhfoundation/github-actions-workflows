@@ -71,11 +71,10 @@ on:
         type: string
         description: Docker image tag
 
-      argocd-revision:
-        required: false
+      namespace:
+        required: true
         type: string
-        description: Github ref
-        default: HEAD
+        description: Destination namespace
 
       runs-on:
         required: false
@@ -94,7 +93,7 @@ jobs:
     container:
       image: ${{ inputs.git-runner-container }}
     env:
-      NAMESPACE: ${{ inputs.argocd-app-name }}
+      NAMESPACE: ${{ inputs.namespace }}
     steps:
       - name: Create/Update application on ArgoCD
         shell: bash
