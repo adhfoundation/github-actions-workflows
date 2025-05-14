@@ -26,16 +26,17 @@ on:
         description: Which repo the helm chart is located
         default: "git@github.com:${{ github.repository }}"
 
+      argocd-http-retry-max:
+        required: false
+        type: string
+        description: Http max retries
+        default: "3"
+
       argocd-revision:
         required: false
         type: string
         description: Github ref
         default: HEAD
-
-      argocd-sync-options:
-        required: false
-        type: string
-        description: ArgoCD sync options. Can be multiple options with multi-line string
 
       argocd-skip-sync:
         required: false
