@@ -81,6 +81,7 @@ jobs:
           target: ${{ inputs.docker-build-target }}
           tags: ${{ steps.meta.outputs.tags }}
           build-args: |
+            GH_ACCESS_TOKEN=${{ secrets.GH_ACCESS_TOKEN }}
             ${{ inputs.docker-build-args }}
           load: true
           push: false
