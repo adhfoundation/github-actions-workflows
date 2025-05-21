@@ -21,6 +21,10 @@ on:
         required: true
         type: string
         description: Tag da imagem local (usada para comparação)
+      environment:
+        required: true
+        type: string
+        description: Environment
     secrets:
       DOCKERHUB_USER:
         required: false
@@ -36,6 +40,7 @@ env:
 jobs:
   scan:
     name: Docker Scout Scan (ECR comparison)
+    environment: ${{ inputs.environment }}
     runs-on: ubuntu-22.04
     permissions:
       contents: read
