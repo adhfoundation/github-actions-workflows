@@ -21,11 +21,6 @@ on:
         type: string
         description: Dockerfile path
         default: 'Dockerfile'
-      docker-labels:
-        required: false
-        type: string
-        description: Docker labels
-        default: ""
       docker-tag:
         required: true
         type: string
@@ -39,27 +34,7 @@ on:
         type: boolean
         description: Is the repository public?
         default: false
-      scan-image:
-        required: false
-        type: boolean
-        default: false
-        description: Scan image with docker scout
-      scout-command:
-        required: false
-        type: string
-        default: quickview,cves,recommendations
-        description: Scout command to run e.g. quickview,cves,recommendations,sbom,environment,compare
-      scout-organization:
-        required: false
-        type: string
-        default: iclinic
-        description: Scout organization to use
-
     secrets:
-      DOCKERHUB_USER:
-        required: false
-      DOCKERHUB_PASSWORD:
-        required: false
       GH_ACCESS_TOKEN:
         required: false
       PIP_EXTRA_INDEX_URL:
@@ -78,8 +53,7 @@ jobs:
     permissions:
       contents: read
       id-token: write
-      packages: write
-      pull-requests: write
+      pull-requests: none
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -110,13 +84,9 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           push: true
-          provenance: true       # <= Gera proveniência (necessário pro Docker Scout)
-          sbom: true             # <= (Opcional) Gera também a SBOM
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          load: true
           context: ${{ inputs.docker-build-context }}
-          labels: ${{ inputs.docker-labels }}
           target: ${{ inputs.docker-build-target }}
           file: ${{ inputs.docker-file-path }}
           tags: |
@@ -126,15 +96,3 @@ jobs:
             GH_ACCESS_TOKEN=${{ secrets.GH_ACCESS_TOKEN }}
             PIP_EXTRA_INDEX_URL=${{ secrets.PIP_EXTRA_INDEX_URL }}
             ${{ inputs.docker-build-args }}
-
-      - name: Scan Docker Scout
-        if: ${{ inputs.scan-image == true && github.event_name == 'pull_request' }}
-        uses: docker/scout-action@v1
-        with:
-          command: ${{ inputs.scout-command }}
-          write-comment: true
-          organization: ${{ inputs.scout-organization }}
-          image: ${{ vars.ECR_URL }}/${{ vars.ECR_REPO }}:${{ inputs.docker-tag }}
-          github-token: ${{ secrets.GH_ACCESS_TOKEN || github.token }}
-          dockerhub-user: ${{ secrets.DOCKERHUB_USER }}
-          dockerhub-password: ${{ secrets.DOCKERHUB_PASSWORD }}
