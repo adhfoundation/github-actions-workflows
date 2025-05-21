@@ -114,6 +114,7 @@ jobs:
           sbom: true             # <= (Opcional) Gera também a SBOM
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          load: true
           context: ${{ inputs.docker-build-context }}
           labels: ${{ inputs.docker-labels }}
           target: ${{ inputs.docker-build-target }}
