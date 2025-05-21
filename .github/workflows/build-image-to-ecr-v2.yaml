@@ -44,6 +44,11 @@ on:
         type: string
         default: quickview,cves,recommendations
         description: Scout command to run e.g. quickview,cves,recommendations,sbom,environment,compare
+      scout-organization:
+        required: false
+        type: string
+        default: iclinic
+        description: Scout organization to use
 
     secrets:
       DOCKERHUB_USER:
@@ -68,6 +73,7 @@ jobs:
     permissions:
       contents: read
       id-token: write
+      packages: write
       pull-requests: write
     steps:
       - name: Checkout
@@ -118,6 +124,7 @@ jobs:
         with:
           command: ${{ inputs.scout-command }}
           write-comment: true
+          organization: ${{ inputs.scout-organization }}
           image: ${{ vars.ECR_URL }}/${{ vars.ECR_REPO }}:${{ inputs.docker-tag }}
           github-token: ${{ secrets.GH_ACCESS_TOKEN }} # to be able to write the comment
           dockerhub-user: ${{ secrets.DOCKERHUB_USER }}
