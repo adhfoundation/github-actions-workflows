@@ -21,6 +21,15 @@ on:
         type: string
         description: Dockerfile path
         default: 'Dockerfile'
+      docker-labels:
+        required: false
+        type: string
+        description: Docker labels
+        default: |
+          org.opencontainers.image.source=${{ github.event.repository.html_url }}
+          org.opencontainers.image.vendor=Afya
+          org.opencontainers.image.title=${{ github.event.repository.name }}
+          org.opencontainers.image.description=Image built from ${{ github.repository }}
       docker-tag:
         required: true
         type: string
@@ -110,6 +119,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           context: ${{ inputs.docker-build-context }}
+          labels: ${{ inputs.docker-labels }}
           target: ${{ inputs.docker-build-target }}
           file: ${{ inputs.docker-file-path }}
           tags: |
