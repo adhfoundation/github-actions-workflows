@@ -128,13 +128,13 @@ jobs:
             ${{ inputs.docker-build-args }}
 
       - name: Scan Docker Scout
-        if: ${{ inputs.scan-image == true }}
+        if: ${{ inputs.scan-image == true && github.event_name == 'pull_request' }}
         uses: docker/scout-action@v1
         with:
           command: ${{ inputs.scout-command }}
           write-comment: true
           organization: ${{ inputs.scout-organization }}
           image: ${{ vars.ECR_URL }}/${{ vars.ECR_REPO }}:${{ inputs.docker-tag }}
-          github-token: ${{ secrets.GH_ACCESS_TOKEN }} # to be able to write the comment
+          github-token: ${{ secrets.GH_ACCESS_TOKEN || github.token }}
           dockerhub-user: ${{ secrets.DOCKERHUB_USER }}
           dockerhub-password: ${{ secrets.DOCKERHUB_PASSWORD }}
