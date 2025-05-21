@@ -34,7 +34,22 @@ on:
         type: boolean
         description: Is the repository public?
         default: false
+      scan-image:
+        required: false
+        type: boolean
+        default: false
+        description: Scan image with docker scout
+      scout-command:
+        required: false
+        type: string
+        default: quickview,cves,recommendations
+        description: Scout command to run e.g. quickview,cves,recommendations,sbom,environment,compare
+
     secrets:
+      DOCKERHUB_USER:
+        required: false
+      DOCKERHUB_PASSWORD:
+        required: false
       GH_ACCESS_TOKEN:
         required: false
       PIP_EXTRA_INDEX_URL:
@@ -53,7 +68,7 @@ jobs:
     permissions:
       contents: read
       id-token: write
-      pull-requests: none
+      pull-requests: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -96,3 +111,14 @@ jobs:
             GH_ACCESS_TOKEN=${{ secrets.GH_ACCESS_TOKEN }}
             PIP_EXTRA_INDEX_URL=${{ secrets.PIP_EXTRA_INDEX_URL }}
             ${{ inputs.docker-build-args }}
+
+      - name: Scan Docker Scout
+        if: ${{ inputs.scan-image == true }}
+        uses: docker/scout-action@v1
+        with:
+          command: ${{ inputs.scout-command }}
+          write-comment: true
+          image: ${{ vars.ECR_URL }}/${{ vars.ECR_REPO }}:${{ inputs.docker-tag }}
+          github-token: ${{ secrets.GH_ACCESS_TOKEN }} # to be able to write the comment
+          dockerhub-user: ${{ secrets.DOCKERHUB_USER }}
+          dockerhub-password: ${{ secrets.DOCKERHUB_PASSWORD }}
