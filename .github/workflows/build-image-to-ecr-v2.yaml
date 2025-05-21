@@ -105,6 +105,8 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           push: true
+          provenance: true       # <= Gera proveniência (necessário pro Docker Scout)
+          sbom: true             # <= (Opcional) Gera também a SBOM
           cache-from: type=gha
           cache-to: type=gha,mode=max
           context: ${{ inputs.docker-build-context }}
