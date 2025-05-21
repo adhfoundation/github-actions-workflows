@@ -1,0 +1,101 @@
+name: SAST and Docker Scout Scan
+
+on:
+  workflow_call:
+    inputs:
+      docker-build-context:
+        required: false
+        type: string
+        default: '.'
+      docker-build-target:
+        required: false
+        type: string
+      docker-build-args:
+        required: false
+        type: string
+      docker-file-path:
+        required: false
+        type: string
+        default: 'Dockerfile'
+      docker-tag:
+        required: true
+        type: string
+        description: Tag da imagem local (usada para comparação)
+    secrets:
+      GH_ACCESS_TOKEN:
+        required: false
+      PIP_EXTRA_INDEX_URL:
+        required: false
+      REQUIREMENTS:
+        required: false
+      GITHUB_TOKEN:
+        required: true
+
+env:
+  TERM: xterm-256color
+  SHA: ${{ github.event.pull_request.head.sha || github.event.after }}
+
+jobs:
+  scan:
+    name: Docker Scout Scan (ECR comparison)
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+      pull-requests: write
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_CREDS_ROLE_TO_ASSUME }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Login to ECR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ vars.ECR_URL }}
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ vars.ECR_URL }}/${{ vars.ECR_REPO }}
+          tags: |
+            type=sha,prefix=,suffix=,format=short
+
+      - name: Build image (local only)
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ inputs.docker-build-context }}
+          file: ${{ inputs.docker-file-path }}
+          target: ${{ inputs.docker-build-target }}
+          tags: ${{ steps.meta.outputs.tags }}
+          build-args: |
+            GH_ACCESS_TOKEN=${{ secrets.GH_ACCESS_TOKEN }}
+            PIP_EXTRA_INDEX_URL=${{ secrets.PIP_EXTRA_INDEX_URL }}
+            REQUIREMENTS=${{ secrets.REQUIREMENTS }}
+            ${{ inputs.docker-build-args }}
+          load: true
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Docker Scout Compare (vs ECR latest)
+        uses: docker/scout-action@v1
+        if: ${{ github.event_name == 'pull_request' }}
+        with:
+          command: compare,cves,recommendations
+          image: ${{ steps.meta.outputs.tags }}
+          to: ${{ vars.ECR_URL }}/${{ vars.ECR_REPO }}:latest
+          ignore-unchanged: true
+          only-fixed: true
+          only-severities: critical,high
+          write-comment: true
+          github-token: ${{ secrets.GITHUB_TOKEN }}
