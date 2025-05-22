@@ -84,11 +84,11 @@ jobs:
         with:
           registry-type: public
 
-      - name: Login to Private ECR ${{ vars.ECR_URL }}
+      - name: Login to Private ECR ${{ inputs.ecr-url }}
         if: inputs.public-repository == false
         uses: docker/login-action@v3
         with:
-          registry: ${{ vars.ECR_URL }}
+          registry: ${{ inputs.ecr-url }}
 
       - name: Build image
         uses: docker/build-push-action@v5
