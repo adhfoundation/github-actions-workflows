@@ -34,6 +34,16 @@ on:
         type: boolean
         description: Is the repository public?
         default: false
+      ecr-repo:
+        required: false
+        type: string
+        description: ECR Repository
+        default: ${{ vars.ECR_REPO }}
+      ecr-url:
+        required: false
+        type: string
+        description: ECR URL
+        default: ${{ vars.ECR_URL }}
     secrets:
       GH_ACCESS_TOKEN:
         required: false
@@ -90,8 +100,8 @@ jobs:
           target: ${{ inputs.docker-build-target }}
           file: ${{ inputs.docker-file-path }}
           tags: |
-            ${{ vars.ECR_URL }}/${{ vars.ECR_REPO }}:latest
-            ${{ vars.ECR_URL }}/${{ vars.ECR_REPO }}:${{ inputs.docker-tag }}
+            ${{ inputs.ecr-url }}/${{ inputs.ecr-repo }}:latest
+            ${{ inputs.ecr-url }}/${{ inputs.ecr-repo }}:${{ inputs.docker-tag }}
           build-args: |
             GH_ACCESS_TOKEN=${{ secrets.GH_ACCESS_TOKEN }}
             PIP_EXTRA_INDEX_URL=${{ secrets.PIP_EXTRA_INDEX_URL }}
