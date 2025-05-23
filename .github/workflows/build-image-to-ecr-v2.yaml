@@ -35,12 +35,12 @@ on:
         description: Is the repository public?
         default: false
       ecr-url:
-        required: false
+        required: true
         type: string
         description: Is the repository public?
         default: "{{ vars.ECR_URL }}"
       ecr-repo:
-        required: false
+        required: true
         type: string
         description: Is the repository public?
         default: "{{ vars.ECR_REPO }}"
