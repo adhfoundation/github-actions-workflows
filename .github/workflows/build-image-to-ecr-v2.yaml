@@ -35,15 +35,15 @@ on:
         description: Is the repository public?
         default: false
       ecr-url:
-        required: true
+        required: false
         type: string
         description: Is the repository public?
-        default: "{{ vars.ECR_URL }}"
+        default: {{ vars.ECR_URL }}
       ecr-repo:
-        required: true
+        required: false
         type: string
         description: Is the repository public?
-        default: "{{ vars.ECR_REPO }}"
+        default: {{ vars.ECR_REPO }}
     secrets:
       GH_ACCESS_TOKEN:
         required: false
