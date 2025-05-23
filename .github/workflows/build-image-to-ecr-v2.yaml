@@ -38,12 +38,12 @@ on:
         required: false
         type: string
         description: ECR Repository
-        default: "${{ vars.ECR_REPO }}"
+        default: '${{ vars.ECR_REPO }}'
       ecr-url:
         required: false
         type: string
         description: ECR URL
-        default: "${{ vars.ECR_URL }}"
+        default: '${{ vars.ECR_URL }}'
     secrets:
       GH_ACCESS_TOKEN:
         required: false
