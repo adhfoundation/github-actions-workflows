@@ -69,8 +69,8 @@ jobs:
     environment: ${{ inputs.environment }}
     # These permissions are needed to interact with GitHub's OIDC Token endpoint.
     permissions:
-      id-token: write
       contents: read
+      id-token: write
       pull-requests: write
     steps:
       - name: Validate inputs
