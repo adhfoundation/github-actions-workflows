@@ -70,7 +70,7 @@ jobs:
     # These permissions are needed to interact with GitHub's OIDC Token endpoint.
     permissions:
       contents: read
-      id-token: write
+      packages: write
       pull-requests: write
     steps:
       - name: Validate inputs
@@ -130,12 +130,40 @@ jobs:
             PIP_EXTRA_INDEX_URL=${{ secrets.PIP_EXTRA_INDEX_URL }}
             ${{ inputs.docker-build-args }}
 
+      - name: Validate Docker Scout secrets
+        if: ${{ inputs.scan-image == true }}
+        run: |
+          missing=0
+          if [ -z "${{ secrets.GH_SCOUT_ACCESS_TOKEN }}" ]; then
+            echo "Error: GH_SCOUT_ACCESS_TOKEN secret is required for Docker Scout scan."
+            missing=1
+          fi
+          if [ -z "${{ secrets.DOCKERHUB_USER }}" ]; then
+            echo "Error: DOCKERHUB_USER secret is required for Docker Scout scan."
+            missing=1
+          fi
+          if [ -z "${{ secrets.DOCKERHUB_PASSWORD }}" ]; then
+            echo "Error: DOCKERHUB_PASSWORD secret is required for Docker Scout scan."
+            missing=1
+          fi
+          if [ "$missing" -eq 1 ]; then
+            echo ""
+            echo "Exemplo de uso no workflow da aplicação:"
+            echo ""
+            echo "  secrets:"
+            echo "    GH_ACCESS_TOKEN: \${{ secrets.GH_ACCESS_TOKEN }}"
+            echo "    GH_SCOUT_ACCESS_TOKEN: \${{ secrets.GITHUB_TOKEN }}"
+            echo "    DOCKERHUB_USER: \${{ secrets.DOCKERHUB_USER }}"
+            echo "    DOCKERHUB_PASSWORD: \${{ secrets.DOCKERHUB_PASSWORD }}"
+            exit 1
+          fi
+
       - name: Scan Docker Scout
         if: ${{ inputs.scan-image == true }}
         uses: docker/scout-action@v1
         with:
           command: ${{ inputs.scout-command }}
-          write-comment: true
+          write-comment: ${{ github.event_name == 'pull_request' }}
           image: ${{ vars.ECR_URL }}/${{ vars.ECR_REPO }}:${{ inputs.docker-tag }}
           github-token: ${{ secrets.GH_SCOUT_ACCESS_TOKEN }}
           dockerhub-user: ${{ secrets.DOCKERHUB_USER }}
