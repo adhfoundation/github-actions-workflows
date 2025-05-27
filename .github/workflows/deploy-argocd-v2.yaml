@@ -76,7 +76,7 @@ on:
         type: string
         description: Values yaml file
         default: "values.yaml"
-
+    
     secrets:
       ARGOCD_AUTH_TOKEN:
         required: true
