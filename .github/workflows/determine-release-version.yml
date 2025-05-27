@@ -1,0 +1,63 @@
+name: Determine Release Version
+
+on:
+  workflow_call:
+    inputs:
+      bump-type:
+        required: true
+        type: string
+        description: Release type (e.g., major, minor, patch, prerelease)
+      prefix:
+        required: true
+        type: string
+        description: Prefix for the release tag (e.g., v)
+      dry-run:
+        required: false
+        type: boolean
+        description: "Simulate release creation (default: true)"
+      per-branch:
+        required: false
+        type: boolean
+        description: "Only consider tags from the current branch (default: false)"
+      preid:
+        required: false
+        type: string
+        description: "Identifier for prerelease versions (e.g., alpha, beta)"
+    outputs:
+      release-tag:
+        description: Release Tag
+        value: ${{ jobs.determine-version.outputs.release-tag }}
+      version:
+        description: Full version number
+        value: ${{ jobs.determine-version.outputs.version }}
+      version-optimistic:
+        description: Optimistic version (major.minor)
+        value: ${{ jobs.determine-version.outputs.version-optimistic }}
+    secrets:
+      GH_TOKEN:
+        required: true
+
+jobs:
+
+  determine-version:
+    runs-on: ubuntu-22.04
+    outputs:
+      release-tag: ${{ steps.semver.outputs.version_tag }}
+      version: ${{ steps.semver.outputs.version }}
+      version-optimistic: ${{ steps.semver.outputs.version_optimistic }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0 # Required for per-branch functionality
+
+      - name: Determine Next Release Version
+        id: semver
+        uses: zwaldowski/semver-release-action@v3
+        with:
+          bump: ${{ inputs.bump-type }}
+          prefix: ${{ inputs.prefix }}
+          github_token: ${{ secrets.GH_TOKEN }}
+          dry_run: true # Sempre calcula a versão sem criar a tag
+          per_branch: ${{ inputs.per-branch }}
+          preid: ${{ inputs.preid }}

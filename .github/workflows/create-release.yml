@@ -1,0 +1,74 @@
+name: Create Release
+
+on:
+  workflow_call:
+    inputs:
+      bump-type:
+        required: true
+        type: string
+        description: Release type (e.g., major, minor, patch, prerelease)
+      prefix:
+        required: true
+        type: string
+        description: Prefix for the release tag (e.g., v)
+      preid:
+        required: false
+        type: string
+        description: Identifier for prerelease versions (e.g., alpha, beta)
+      per-branch:
+        required: false
+        type: boolean
+        description: "Only consider tags from the current branch (default: false)"
+      sha:
+        required: false
+        type: string
+        description: Commit SHA to create the tag (optional, used if dry-run was used previously)
+      prerelease:
+        required: false
+        type: boolean
+        description: "Mark the release as a prerelease (default: false)"
+      body:
+        required: false
+        type: string
+        description: Body content for the release notes
+      body-file:
+        required: false
+        type: string
+        description: Path to a file containing the release notes
+    secrets:
+      GH_TOKEN:
+        required: true
+
+jobs:
+  create-release:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write # Necessário para criar a release
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Required for per-branch functionality
+
+      - name: Generate Next Release Version
+        id: semver
+        uses: zwaldowski/semver-release-action@v3
+        with:
+          bump: ${{ inputs.bump-type }}
+          prefix: ${{ inputs.prefix }}
+          github_token: ${{ secrets.GH_TOKEN }}
+          preid: ${{ inputs.preid }}
+          per_branch: ${{ inputs.per-branch }}
+          sha: ${{ inputs.sha || '' }} # Use SHA if provided, otherwise use the current commit
+
+      - name: Create Release
+        uses: ncipollo/release-action@v1
+        with:
+          generateReleaseNotes: true
+          name: ${{ inputs.prefix }}${{ steps.semver.outputs.version }}
+          tag: ${{ inputs.prefix }}${{ steps.semver.outputs.version }}
+          token: ${{ secrets.GH_TOKEN }}
+          prerelease: ${{ inputs.prerelease }}
+          body: ${{ inputs.body || '' }}
+          bodyFile: ${{ inputs.body-file || '' }}
+          skipIfReleaseExists: true
