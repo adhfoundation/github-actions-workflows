@@ -151,7 +151,6 @@ jobs:
             echo "Exemplo de uso no workflow da aplicação:"
             echo ""
             echo "  secrets:"
-            echo "    GH_ACCESS_TOKEN: \${{ secrets.GH_ACCESS_TOKEN }}"
             echo "    GH_SCOUT_ACCESS_TOKEN: \${{ secrets.GITHUB_TOKEN }}"
             echo "    DOCKERHUB_USER: \${{ secrets.DOCKERHUB_USER }}"
             echo "    DOCKERHUB_PASSWORD: \${{ secrets.DOCKERHUB_PASSWORD }}"
