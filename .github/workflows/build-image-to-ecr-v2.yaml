@@ -109,10 +109,6 @@ jobs:
         with:
           registry: ${{ vars.ECR_URL }}
 
-      - name: Set image tag output
-        id: set-tag
-        run: echo "image-tag=${{ inputs.docker-tag }}" >> $GITHUB_OUTPUT
-
       - name: Build and push image
         uses: docker/build-push-action@v6
         with:
