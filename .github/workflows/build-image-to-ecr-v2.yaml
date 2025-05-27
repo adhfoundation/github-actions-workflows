@@ -54,7 +54,6 @@ on:
         required: false
       REQUIREMENTS:
         required: false
-
       DOCKERHUB_USER:
         required: false
       DOCKERHUB_PASSWORD:
@@ -72,7 +71,7 @@ jobs:
     permissions:
       contents: read
       id-token: write
-      pull-requests: none
+      pull-requests: write
     steps:
       - name: Validate inputs
         run: |
