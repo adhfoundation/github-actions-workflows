@@ -37,7 +37,7 @@ on:
       scan-image:
         required: false
         type: boolean
-        default: false
+        default: true
         description: Scan image with docker scout
       scout-command:
         required: false
