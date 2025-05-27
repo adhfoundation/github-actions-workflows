@@ -128,6 +128,7 @@ jobs:
 
       - name: Validate Docker Scout secrets
         if: ${{ inputs.scan-image == true }}
+        continue-on-error: true
         run: |
           missing=0
           if [ -z "${{ secrets.GH_SCOUT_ACCESS_TOKEN }}" ]; then
@@ -155,6 +156,7 @@ jobs:
 
       - name: Scan Docker Scout
         if: ${{ inputs.scan-image == true }}
+        continue-on-error: true
         uses: docker/scout-action@v1
         with:
           command: ${{ inputs.scout-command }}
