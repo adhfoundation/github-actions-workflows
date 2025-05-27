@@ -55,6 +55,11 @@ on:
       REQUIREMENTS:
         required: false
 
+      DOCKERHUB_USER:
+        required: false
+      DOCKERHUB_PASSWORD:
+        required: false
+
 env:
   TERM: xterm-256color
 
