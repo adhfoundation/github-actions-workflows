@@ -34,7 +34,20 @@ on:
         type: boolean
         description: Is the repository public?
         default: false
+      scan-image:
+        required: false
+        type: boolean
+        default: false
+        description: Scan image with docker scout
+      scout-command:
+        required: false
+        type: string
+        default: quickview,cves,recommendations
+        description: Scout command to run e.g. quickview,cves,recommendations,sbom,environment,compare
+
     secrets:
+      GH_SCOUT_ACCESS_TOKEN:
+        required: false
       GH_ACCESS_TOKEN:
         required: false
       PIP_EXTRA_INDEX_URL:
@@ -48,6 +61,7 @@ env:
 jobs:
   build:
     runs-on: ubuntu-22.04
+    timeout-minutes: 30
     environment: ${{ inputs.environment }}
     # These permissions are needed to interact with GitHub's OIDC Token endpoint.
     permissions:
@@ -55,6 +69,17 @@ jobs:
       id-token: write
       pull-requests: none
     steps:
+      - name: Validate inputs
+        run: |
+          if [ -z "${{ inputs.docker-tag }}" ]; then
+            echo "docker-tag is required"
+            exit 1
+          fi
+          if [ -z "${{ inputs.environment }}" ]; then
+            echo "environment is required"
+            exit 1
+          fi
+
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -80,7 +105,11 @@ jobs:
         with:
           registry: ${{ vars.ECR_URL }}
 
-      - name: Build image
+      - name: Set image tag output
+        id: set-tag
+        run: echo "image-tag=${{ inputs.docker-tag }}" >> $GITHUB_OUTPUT
+
+      - name: Build and push image
         uses: docker/build-push-action@v6
         with:
           push: true
@@ -96,3 +125,14 @@ jobs:
             GH_ACCESS_TOKEN=${{ secrets.GH_ACCESS_TOKEN }}
             PIP_EXTRA_INDEX_URL=${{ secrets.PIP_EXTRA_INDEX_URL }}
             ${{ inputs.docker-build-args }}
+
+      - name: Scan Docker Scout
+        if: ${{ inputs.scan-image == true }}
+        uses: docker/scout-action@v1
+        with:
+          command: ${{ inputs.scout-command }}
+          write-comment: true
+          image: ${{ vars.ECR_URL }}/${{ vars.ECR_REPO }}:${{ inputs.docker-tag }}
+          github-token: ${{ secrets.GH_SCOUT_ACCESS_TOKEN }}
+          dockerhub-user: ${{ secrets.DOCKERHUB_USER }}
+          dockerhub-password: ${{ secrets.DOCKERHUB_PASSWORD }}
