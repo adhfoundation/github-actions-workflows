@@ -143,9 +143,9 @@ jobs:
             missing=1
           fi
           if [ "$missing" -eq 1 ]; then
-            echo ""
+            echo
             echo "Exemplo de uso no workflow da aplicação:"
-            echo ""
+            echo
             echo "  secrets:"
             echo "    GH_SCOUT_ACCESS_TOKEN: \${{ secrets.GITHUB_TOKEN }}"
             echo "    DOCKERHUB_USER: \${{ secrets.DOCKERHUB_USER }}"
