@@ -41,6 +41,11 @@ on:
         required: true
         type: string
         description: ECR repository name
+      platforms:
+        required: false
+        type: string
+        description: Platforms to build (e.g., linux/amd64,linux/arm64)
+        default: 'linux/amd64' # Default seguro para EKS
 
     secrets:
       PIP_EXTRA_INDEX_URL:
