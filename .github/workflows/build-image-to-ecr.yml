@@ -95,6 +95,7 @@ jobs:
           context: ${{ inputs.docker-build-context }}
           target: ${{ inputs.docker-build-target }}
           file: ${{ inputs.docker-file-path }}
+          platforms: ${{ inputs.platforms }}
           tags: |
             ${{ inputs.ecr-url }}/${{ inputs.ecr-repo }}:latest
             ${{ inputs.ecr-url }}/${{ inputs.ecr-repo }}:${{ inputs.docker-tag }}
