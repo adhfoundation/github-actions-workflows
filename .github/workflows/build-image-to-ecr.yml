@@ -99,3 +99,4 @@ jobs:
             REQUIREMENTS=${{ secrets.REQUIREMENTS }}
             NEXT_PUBLIC_PORTAL_AFYA_API_BASE_URL: ${{ secrets.NEXT_PUBLIC_PORTAL_AFYA_API_BASE_URL }}
             NEXT_PUBLIC_BFF_AFYA_API_BASE_URL: ${{ secrets.NEXT_PUBLIC_BFF_AFYA_API_BASE_URL }}
+            ${{ inputs.docker-build-args }}
