@@ -117,18 +117,27 @@ jobs:
           INSTALLATION_ID: ${{ secrets.GITHUB_APP_INSTALLATION_ID }}
           PRIVATE_KEY: ${{ secrets.GITHUB_APP_PRIVATE_KEY }}
         run: |-
+          set -e
           NOW=$(date +%s)
           IAT=$((NOW - 60))
           EXP=$((NOW + 540))
+          
           # Write private key to temp file
           KEY_FILE=$(mktemp)
           printf '%s\n' "$PRIVATE_KEY" > "$KEY_FILE"
-          openssl rsa -in "$KEY_FILE" -check -noout
+          
+          if ! openssl rsa -in "$KEY_FILE" -check -noout 2>/dev/null; then
+            echo "::error::Invalid private key format"
+            rm -f "$KEY_FILE"
+            exit 1
+          fi
           chmod 600 "$KEY_FILE"
+          
           # Base64URL helper
           b64url() {
             openssl base64 -e -A | tr '+/' '-_' | tr -d '='
           }
+          
           HEADER=$(printf '{"alg":"RS256","typ":"JWT"}' | b64url)
           PAYLOAD=$(printf '{"iat":%d,"exp":%d,"iss":"%s"}' "$IAT" "$EXP" "$APP_ID" | b64url)
           UNSIGNED="$HEADER.$PAYLOAD"
@@ -136,13 +145,35 @@ jobs:
             | openssl dgst -sha256 -sign "$KEY_FILE" \
             | b64url)
           JWT="$UNSIGNED.$SIGNATURE"
+          
           # Exchange JWT for installation token
-          TOKEN=$(curl -fsSL -X POST \
+          RESPONSE=$(curl -sL -X POST \
             -H "Authorization: Bearer $JWT" \
             -H "Accept: application/vnd.github+json" \
-            https://api.github.com/app/installations/$INSTALLATION_ID/access_tokens \
-            | jq -r '.token')
+            -w "\n%{http_code}" \
+            https://api.github.com/app/installations/$INSTALLATION_ID/access_tokens)
+          
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+          
+          if [ "$HTTP_CODE" != "201" ]; then
+            echo "::error::Failed to get installation token. HTTP $HTTP_CODE"
+            echo "Response: $BODY"
+            rm -f "$KEY_FILE"
+            exit 1
+          fi
+          
+          TOKEN=$(echo "$BODY" | jq -r '.token')
+          
+          if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
+            echo "::error::Token is empty or null"
+            rm -f "$KEY_FILE"
+            exit 1
+          fi
+          
+          echo "::notice::GitHub App token generated successfully"
           echo "token=$TOKEN" >> "$GITHUB_OUTPUT"
+          
           # Clean up
           rm -f "$KEY_FILE"
 
