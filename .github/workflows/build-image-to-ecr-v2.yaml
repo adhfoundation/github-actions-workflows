@@ -58,11 +58,11 @@ on:
         required: false
       DOCKERHUB_PASSWORD:
         required: false
-      GH_APP_READ_GO_MODULES_APPID:
+      GITHUB_APP_APPID:
         required: false
-      GH_APP_READ_GO_MODULES_INSTALLATION_ID:
+      GITHUB_APP_INSTALLATION_ID:
         required: false
-      GH_APP_READ_GO_MODULES_PRIVATE_KEY:
+      GITHUB_APP_PRIVATE_KEY:
         required: false
 
 env:
@@ -93,14 +93,29 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Check GitHub App secrets
+        id: check-github-app
+        shell: bash
+        env:
+          APP_ID: ${{ secrets.GITHUB_APP_APPID }}
+          INSTALLATION_ID: ${{ secrets.GITHUB_APP_INSTALLATION_ID }}
+          PRIVATE_KEY: ${{ secrets.GITHUB_APP_PRIVATE_KEY }}
+        run: |
+          if [ -n "$APP_ID" ] && [ -n "$INSTALLATION_ID" ] && [ -n "$PRIVATE_KEY" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "GitHub App secrets not configured, skipping token generation"
+          fi
+
       - name: Generate GitHub App installation token
-        if: ${{ secrets.GH_APP_READ_GO_MODULES_APPID != '' && secrets.GH_APP_READ_GO_MODULES_INSTALLATION_ID != '' && secrets.GH_APP_READ_GO_MODULES_PRIVATE_KEY != '' }}
+        if: steps.check-github-app.outputs.configured == 'true'
         id: app-token
         shell: bash
         env:
-          APP_ID: ${{ secrets.GH_APP_READ_GO_MODULES_APPID }}
-          INSTALLATION_ID: ${{ secrets.GH_APP_READ_GO_MODULES_INSTALLATION_ID }}
-          PRIVATE_KEY: ${{ secrets.GH_APP_READ_GO_MODULES_PRIVATE_KEY }}
+          APP_ID: ${{ secrets.GITHUB_APP_APPID }}
+          INSTALLATION_ID: ${{ secrets.GITHUB_APP_INSTALLATION_ID }}
+          PRIVATE_KEY: ${{ secrets.GITHUB_APP_PRIVATE_KEY }}
         run: |-
           NOW=$(date +%s)
           IAT=$((NOW - 60))
