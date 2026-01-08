@@ -101,6 +101,12 @@ jobs:
           INSTALLATION_ID: ${{ secrets.GITHUB_APP_INSTALLATION_ID }}
           PRIVATE_KEY: ${{ secrets.GITHUB_APP_PRIVATE_KEY }}
         run: |
+          # TEMPORARY: Force GH_ACCESS_TOKEN flow for testing
+          echo "::warning::TEMPORARY: Forcing GH_ACCESS_TOKEN flow (GitHub App disabled)"
+          echo "configured=false" >> "$GITHUB_OUTPUT"
+          exit 0
+          # END TEMPORARY
+          
           if [ -n "$APP_ID" ] && [ -n "$INSTALLATION_ID" ] && [ -n "$PRIVATE_KEY" ]; then
             echo "configured=true" >> "$GITHUB_OUTPUT"
           else
