@@ -58,6 +58,12 @@ on:
         required: false
       DOCKERHUB_PASSWORD:
         required: false
+      GH_APP_READ_GO_MODULES_APPID:
+        required: false
+      GH_APP_READ_GO_MODULES_INSTALLATION_ID:
+        required: false
+      GH_APP_READ_GO_MODULES_PRIVATE_KEY:
+        required: false
 
 env:
   TERM: xterm-256color
@@ -86,6 +92,44 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Generate GitHub App installation token
+        if: ${{ secrets.GH_APP_READ_GO_MODULES_PRIVATE_KEY != '' }}
+        id: app-token
+        shell: bash
+        env:
+          APP_ID: ${{ secrets.GH_APP_READ_GO_MODULES_APPID }}
+          INSTALLATION_ID: ${{ secrets.GH_APP_READ_GO_MODULES_INSTALLATION_ID }}
+          PRIVATE_KEY: ${{ secrets.GH_APP_READ_GO_MODULES_PRIVATE_KEY }}
+        run: |-
+          NOW=$(date +%s)
+          IAT=$((NOW - 60))
+          EXP=$((NOW + 540))
+          # Write private key to temp file
+          KEY_FILE=$(mktemp)
+          printf '%s\n' "$PRIVATE_KEY" > "$KEY_FILE"
+          openssl rsa -in "$KEY_FILE" -check -noout
+          chmod 600 "$KEY_FILE"
+          # Base64URL helper
+          b64url() {
+            openssl base64 -e -A | tr '+/' '-_' | tr -d '='
+          }
+          HEADER=$(printf '{"alg":"RS256","typ":"JWT"}' | b64url)
+          PAYLOAD=$(printf '{"iat":%d,"exp":%d,"iss":"%s"}' "$IAT" "$EXP" "$APP_ID" | b64url)
+          UNSIGNED="$HEADER.$PAYLOAD"
+          SIGNATURE=$(printf '%s' "$UNSIGNED" \
+            | openssl dgst -sha256 -sign "$KEY_FILE" \
+            | b64url)
+          JWT="$UNSIGNED.$SIGNATURE"
+          # Exchange JWT for installation token
+          TOKEN=$(curl -fsSL -X POST \
+            -H "Authorization: Bearer $JWT" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/app/installations/$INSTALLATION_ID/access_tokens \
+            | jq -r '.token')
+          echo "token=$TOKEN" >> "$GITHUB_OUTPUT"
+          # Clean up
+          rm -f "$KEY_FILE"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -122,7 +166,7 @@ jobs:
             ${{ vars.ECR_URL }}/${{ vars.ECR_REPO }}:latest
             ${{ vars.ECR_URL }}/${{ vars.ECR_REPO }}:${{ inputs.docker-tag }}
           build-args: |
-            GH_ACCESS_TOKEN=${{ secrets.GH_ACCESS_TOKEN }}
+            GH_ACCESS_TOKEN=${{ steps.app-token.outputs.token || secrets.GH_ACCESS_TOKEN }}
             PIP_EXTRA_INDEX_URL=${{ secrets.PIP_EXTRA_INDEX_URL }}
             ${{ inputs.docker-build-args }}
 
