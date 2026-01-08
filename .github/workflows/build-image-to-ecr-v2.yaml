@@ -94,7 +94,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Generate GitHub App installation token
-        if: ${{ secrets.GH_APP_READ_GO_MODULES_PRIVATE_KEY != '' }}
+        if: ${{ secrets.GH_APP_READ_GO_MODULES_APPID != '' && secrets.GH_APP_READ_GO_MODULES_INSTALLATION_ID != '' && secrets.GH_APP_READ_GO_MODULES_PRIVATE_KEY != '' }}
         id: app-token
         shell: bash
         env:
