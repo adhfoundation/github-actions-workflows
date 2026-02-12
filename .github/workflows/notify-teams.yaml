@@ -1,0 +1,177 @@
+name: Notify Teams
+
+on:
+  workflow_call:
+    inputs:
+      event-type:
+        required: true
+        type: string
+        description: 'pr or review'
+    secrets:
+      TEAMS_WEBHOOK_URL:
+        required: false
+        description: 'Power Automate / Incoming Webhook URL for Teams'
+
+jobs:
+  notify-pr:
+    name: Notify New PR
+    runs-on: ubuntu-latest
+    if: inputs.event-type == 'pr'
+
+    steps:
+      - name: Notify Teams via Power Automate
+        env:
+          TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
+        run: |
+          if [ -z "${TEAMS_WEBHOOK_URL}" ]; then
+            echo "Warning: TEAMS_WEBHOOK_URL is not set"
+            exit 0
+          fi
+          
+          PAYLOAD=$(cat <<EOF
+          {
+            "type": "message",
+            "attachments": [
+              {
+                "contentType": "application/vnd.microsoft.card.adaptive",
+                "content": {
+                  "\$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                  "type": "AdaptiveCard",
+                  "version": "1.4",
+                  "body": [
+                    {
+                      "type": "TextBlock",
+                      "text": "🚀 Nova Pull Request",
+                      "weight": "Bolder",
+                      "size": "Large"
+                    },
+                    {
+                      "type": "FactSet",
+                      "facts": [
+                        {
+                          "title": "Repositório:",
+                          "value": "${{ github.repository }}"
+                        },
+                        {
+                          "title": "Branch:",
+                          "value": "${{ github.head_ref }} → ${{ github.base_ref }}"
+                        },
+                        {
+                          "title": "Autor:",
+                          "value": "${{ github.actor }}"
+                        },
+                        {
+                          "title": "Título:",
+                          "value": "${{ github.event.pull_request.title }}"
+                        }
+                      ]
+                    }
+                  ],
+                  "actions": [
+                    {
+                      "type": "Action.OpenUrl",
+                      "title": "Ver Pull Request",
+                      "url": "${{ github.event.pull_request.html_url }}"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+          EOF
+          )
+          
+          curl -X POST \
+            -H "Content-Type: application/json" \
+            -d "${PAYLOAD}" \
+            "${TEAMS_WEBHOOK_URL}"
+
+  notify-review:
+    name: Notify PR Review
+    runs-on: ubuntu-latest
+    if: inputs.event-type == 'review'
+
+    steps:
+      - name: Set review emoji and status
+        id: review-info
+        run: |
+          STATE="${{ github.event.review.state }}"
+          if [ "$STATE" == "approved" ]; then
+            echo "emoji=✅" >> $GITHUB_OUTPUT
+            echo "status=aprovou" >> $GITHUB_OUTPUT
+          elif [ "$STATE" == "changes_requested" ]; then
+            echo "emoji=🔄" >> $GITHUB_OUTPUT
+            echo "status=solicitou mudanças" >> $GITHUB_OUTPUT
+          else
+            echo "emoji=💬" >> $GITHUB_OUTPUT
+            echo "status=comentou" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Notify Teams via Power Automate
+        env:
+          TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
+          REVIEW_EMOJI: ${{ steps.review-info.outputs.emoji }}
+          REVIEW_STATUS: ${{ steps.review-info.outputs.status }}
+        run: |
+          if [ -z "${TEAMS_WEBHOOK_URL}" ]; then
+            echo "Warning: TEAMS_WEBHOOK_URL is not set"
+            exit 0
+          fi
+          
+          PAYLOAD=$(cat <<PAYLOAD_EOF
+          {
+            "type": "message",
+            "attachments": [
+              {
+                "contentType": "application/vnd.microsoft.card.adaptive",
+                "content": {
+                  "\$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                  "type": "AdaptiveCard",
+                  "version": "1.4",
+                  "body": [
+                    {
+                      "type": "TextBlock",
+                      "text": "${REVIEW_EMOJI} Review de Pull Request",
+                      "weight": "Bolder",
+                      "size": "Large"
+                    },
+                    {
+                      "type": "FactSet",
+                      "facts": [
+                        {
+                          "title": "Repositório:",
+                          "value": "${{ github.repository }}"
+                        },
+                        {
+                          "title": "PR:",
+                          "value": "${{ github.event.pull_request.title }}"
+                        },
+                        {
+                          "title": "Reviewer:",
+                          "value": "${{ github.event.review.user.login }} ${REVIEW_STATUS}"
+                        },
+                        {
+                          "title": "Autor da PR:",
+                          "value": "${{ github.event.pull_request.user.login }}"
+                        }
+                      ]
+                    }
+                  ],
+                  "actions": [
+                    {
+                      "type": "Action.OpenUrl",
+                      "title": "Ver Review",
+                      "url": "${{ github.event.review.html_url }}"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+          PAYLOAD_EOF
+          )
+          
+          curl -X POST \
+            -H "Content-Type: application/json" \
+            -d "${PAYLOAD}" \
+            "${TEAMS_WEBHOOK_URL}"
