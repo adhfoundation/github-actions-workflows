@@ -6,7 +6,12 @@ on:
       event-type:
         required: true
         type: string
-        description: 'pr or review'
+        description: 'pr, review or review_requested'
+      github-to-teams-mapping:
+        required: false
+        type: string
+        description: 'JSON map GitHub login to Teams email, e.g. {"user1":"email1@domain.com"}'
+        default: '{}'
     secrets:
       TEAMS_WEBHOOK_URL:
         required: false
@@ -74,6 +79,136 @@ jobs:
                       "url": "${{ github.event.pull_request.html_url }}"
                     }
                   ]
+                }
+              }
+            ]
+          }
+          EOF
+          )
+          
+          curl -X POST \
+            -H "Content-Type: application/json" \
+            -d "${PAYLOAD}" \
+            "${TEAMS_WEBHOOK_URL}"
+
+  notify-reviewer-requested:
+    name: Notify Reviewer Requested
+    runs-on: ubuntu-latest
+    if: inputs.event-type == 'review_requested'
+
+    steps:
+      - name: Get reviewer Teams mention
+        id: reviewer-info
+        env:
+          GITHUB_TO_TEAMS_MAPPING: ${{ inputs.github-to-teams-mapping }}
+        run: |
+          REVIEWER_LOGIN="${{ github.event.requested_reviewer.login }}"
+          
+          REVIEWER_EMAIL=$(echo "$GITHUB_TO_TEAMS_MAPPING" | jq -r --arg user "$REVIEWER_LOGIN" '.[$user] // empty')
+          
+          if [ -n "$REVIEWER_EMAIL" ]; then
+            echo "mention_text=<at>${REVIEWER_EMAIL}</at>" >> $GITHUB_OUTPUT
+            echo "mention_email=${REVIEWER_EMAIL}" >> $GITHUB_OUTPUT
+            echo "has_mention=true" >> $GITHUB_OUTPUT
+          else
+            echo "mention_text=${REVIEWER_LOGIN}" >> $GITHUB_OUTPUT
+            echo "mention_email=" >> $GITHUB_OUTPUT
+            echo "has_mention=false" >> $GITHUB_OUTPUT
+          fi
+          
+          echo "reviewer_login=${REVIEWER_LOGIN}" >> $GITHUB_OUTPUT
+
+      - name: Notify Reviewer via Teams
+        env:
+          TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
+          MENTION_TEXT: ${{ steps.reviewer-info.outputs.mention_text }}
+          MENTION_EMAIL: ${{ steps.reviewer-info.outputs.mention_email }}
+          HAS_MENTION: ${{ steps.reviewer-info.outputs.has_mention }}
+          REVIEWER_LOGIN: ${{ steps.reviewer-info.outputs.reviewer_login }}
+        run: |
+          if [ -z "${TEAMS_WEBHOOK_URL}" ]; then
+            echo "Warning: TEAMS_WEBHOOK_URL is not set"
+            exit 0
+          fi
+          
+          if [ "$HAS_MENTION" == "true" ]; then
+            ENTITIES_SECTION=$(cat <<ENTITIES
+            ,
+            "msteams": {
+              "entities": [
+                {
+                  "type": "mention",
+                  "text": "<at>${MENTION_EMAIL}</at>",
+                  "mentioned": {
+                    "id": "${MENTION_EMAIL}",
+                    "name": "${REVIEWER_LOGIN}"
+                  }
+                }
+              ]
+            }
+          ENTITIES
+            )
+            MENTION_DISPLAY="${MENTION_TEXT}"
+          else
+            ENTITIES_SECTION=""
+            MENTION_DISPLAY="@${REVIEWER_LOGIN}"
+          fi
+          
+          PAYLOAD=$(cat <<EOF
+          {
+            "type": "message",
+            "attachments": [
+              {
+                "contentType": "application/vnd.microsoft.card.adaptive",
+                "content": {
+                  "\$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                  "type": "AdaptiveCard",
+                  "version": "1.4",
+                  "body": [
+                    {
+                      "type": "TextBlock",
+                      "text": "👀 Solicitação de Code Review",
+                      "weight": "Bolder",
+                      "size": "Large"
+                    },
+                    {
+                      "type": "TextBlock",
+                      "text": "Olá ${MENTION_DISPLAY}! Você foi solicitado para revisar um PR.",
+                      "wrap": true
+                    },
+                    {
+                      "type": "FactSet",
+                      "facts": [
+                        {
+                          "title": "Repositório:",
+                          "value": "${{ github.repository }}"
+                        },
+                        {
+                          "title": "Branch:",
+                          "value": "${{ github.head_ref }} → ${{ github.base_ref }}"
+                        },
+                        {
+                          "title": "Autor:",
+                          "value": "${{ github.event.pull_request.user.login }}"
+                        },
+                        {
+                          "title": "Título:",
+                          "value": "${{ github.event.pull_request.title }}"
+                        },
+                        {
+                          "title": "Reviewer Solicitado:",
+                          "value": "${REVIEWER_LOGIN}"
+                        }
+                      ]
+                    }
+                  ],
+                  "actions": [
+                    {
+                      "type": "Action.OpenUrl",
+                      "title": "Revisar Pull Request",
+                      "url": "${{ github.event.pull_request.html_url }}"
+                    }
+                  ]${ENTITIES_SECTION}
                 }
               }
             ]
