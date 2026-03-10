@@ -16,7 +16,7 @@ on:
         required: true
         type: string
       argocd-destination-cluster:
-        description: 'Destination cluster name (as registered in ArgoCD)'
+        description: 'Destination cluster server URL (as registered in ArgoCD)'
         required: true
         type: string
       repository-url:
@@ -125,7 +125,7 @@ jobs:
           command="argocd app create ${{ inputs.application-name }} \
             --app-namespace ${{ inputs.app-namespace }} \
             --dest-namespace ${{ inputs.namespace }} \
-            --dest-name ${{ inputs.argocd-destination-cluster }} \
+            --dest-server ${{ inputs.argocd-destination-cluster }} \
             --path ${{ inputs.chart-path }} \
             --project ${{ inputs.argocd-project }} \
             --repo ${{ inputs.repository-url }} \
@@ -134,7 +134,8 @@ jobs:
             --upsert \
             --grpc-web \
             --revision ${{ inputs.revision }} \
-            --values values-${{ inputs.environment }}.yaml"
+            --values values-${{ inputs.environment }}.yaml \
+            --helm-set image.tag=${{ inputs.image-tag }}"
 
           if [ "${{ inputs.auto-create-namespace }}" == "true" ]; then
             command+=" --sync-option CreateNamespace=true"
