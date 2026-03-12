@@ -162,7 +162,7 @@ jobs:
           ARGOCD_AUTH_TOKEN: ${{ secrets.argocd-auth-token }}
           ARGOCD_GRPC_KEEP_ALIVE_MIN: ${{ inputs.grpc-keep-alive-min }}
         run: |
-          command="argocd app wait ${{ inputs.app-namespace }}/${{ inputs.application-name }} \
+          command="argocd app wait ${{ inputs.app-namespace }}/${{ inputs.environment }}-${{ inputs.application-name }} \
             --server ${{ inputs.argocd-server-url }} \
             --health \
             --sync \
