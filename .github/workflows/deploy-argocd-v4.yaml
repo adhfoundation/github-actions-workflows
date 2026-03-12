@@ -159,7 +159,7 @@ jobs:
         if: ${{ inputs.argocd-wait }}
         shell: bash
         env:
-          ARGOCD_AUTH_TOKEN: ${{ secrets.ARGOCD_AUTH_TOKEN }}
+          ARGOCD_AUTH_TOKEN: ${{ secrets.argocd-auth-token }}
           ARGOCD_GRPC_KEEP_ALIVE_MIN: ${{ inputs.grpc-keep-alive-min }}
         run: |
           command="argocd app wait ${{ inputs.app-namespace }}/${{ inputs.application-name }} \
