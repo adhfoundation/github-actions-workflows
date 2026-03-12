@@ -122,7 +122,7 @@ jobs:
           ARGOCD_AUTH_TOKEN: ${{ secrets.argocd-auth-token }}
           ARGOCD_GRPC_KEEP_ALIVE_MIN: ${{ inputs.grpc-keep-alive-min }}
         run: |
-          command="argocd app create ${{ inputs.application-name }}-${{ inputs.environment }} \
+          command="argocd app create ${{ inputs.environment }}-${{ inputs.application-name }} \
             --app-namespace ${{ inputs.app-namespace }} \
             --dest-namespace ${{ inputs.namespace }} \
             --dest-server ${{ inputs.argocd-destination-cluster }} \
