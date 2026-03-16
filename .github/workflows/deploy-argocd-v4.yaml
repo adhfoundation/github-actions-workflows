@@ -1,0 +1,176 @@
+name: Deploy to ArgoCD
+
+on:
+  workflow_call:
+    inputs:
+      application-name:
+        description: 'ArgoCD application name'
+        required: true
+        type: string
+      argocd-server-url:
+        description: 'ArgoCD server URL (e.g., argocd.example.com)'
+        required: true
+        type: string
+      argocd-project:
+        description: 'ArgoCD project name'
+        required: true
+        type: string
+      argocd-destination-cluster:
+        description: 'Destination cluster server URL (as registered in ArgoCD)'
+        required: true
+        type: string
+      repository-url:
+        description: 'Git repository URL containing the Helm chart'
+        required: true
+        type: string
+      chart-path:
+        description: 'Path to Helm chart in repository'
+        required: true
+        type: string
+      namespace:
+        description: 'Kubernetes namespace to deploy to'
+        required: true
+        type: string
+      app-namespace:
+        description: 'ArgoCD application namespace'
+        required: true
+        type: string
+      environment:
+        description: 'Environment name (used for values file: values-{environment}.yaml)'
+        required: true
+        type: string
+      image-tag:
+        description: 'Docker image tag to deploy (can be used in Helm values)'
+        required: true
+        type: string
+      revision:
+        description: 'Git revision to deploy (branch, tag, or commit SHA)'
+        required: false
+        default: 'HEAD'
+        type: string
+      sync-policy:
+        description: 'Sync policy: manual or auto'
+        required: false
+        default: 'manual'
+        type: string
+      argocd-wait:
+        description: 'Wait for application to be healthy and synced'
+        required: false
+        default: true
+        type: boolean
+      argocd-wait-timeout:
+        description: 'Wait timeout in seconds'
+        required: false
+        default: 300
+        type: number
+      auto-create-namespace:
+        description: 'Automatically create namespace if it does not exist'
+        required: false
+        default: false
+        type: boolean
+      auto-prune:
+        description: 'Enable automatic pruning of resources'
+        required: false
+        default: false
+        type: boolean
+      self-heal:
+        description: 'Enable self-healing of application'
+        required: false
+        default: false
+        type: boolean
+      grpc-keep-alive-min:
+        description: 'gRPC keep alive minimum time'
+        required: false
+        default: '20s'
+        type: string
+      argocd-wait-additional-args:
+        description: 'Additional arguments for argocd app wait command'
+        required: false
+        default: ''
+        type: string
+      argocd-create-app-additional-args:
+        description: 'Additional arguments for argocd app create command'
+        required: false
+        default: ''
+        type: string
+    secrets:
+      argocd-auth-token:
+        description: 'ArgoCD authentication token'
+        required: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install ArgoCD CLI
+        shell: bash
+        run: |
+          if ! command -v argocd &> /dev/null; then
+            echo "Installing ArgoCD CLI..."
+            curl -sSL -o argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+            chmod +x argocd
+            sudo mv argocd /usr/local/bin/
+            echo "ArgoCD CLI installed successfully"
+          else
+            echo "ArgoCD CLI already installed"
+          fi
+          argocd version --client
+
+      - name: Create/Update ArgoCD Application
+        shell: bash
+        env:
+          ARGOCD_AUTH_TOKEN: ${{ secrets.argocd-auth-token }}
+          ARGOCD_GRPC_KEEP_ALIVE_MIN: ${{ inputs.grpc-keep-alive-min }}
+        run: |
+          command="argocd app create ${{ inputs.environment }}-${{ inputs.application-name }} \
+            --app-namespace ${{ inputs.app-namespace }} \
+            --dest-namespace ${{ inputs.namespace }} \
+            --dest-server ${{ inputs.argocd-destination-cluster }} \
+            --path ${{ inputs.chart-path }} \
+            --project ${{ inputs.argocd-project }} \
+            --repo ${{ inputs.repository-url }} \
+            --server ${{ inputs.argocd-server-url }} \
+            ${{ inputs.argocd-create-app-additional-args }} \
+            --upsert \
+            --grpc-web \
+            --revision ${{ inputs.revision }} \
+            --values values-${{ inputs.environment }}.yaml \
+            --helm-set image.tag=${{ inputs.image-tag }}"
+
+          if [ "${{ inputs.auto-create-namespace }}" == "true" ]; then
+            command+=" --sync-option CreateNamespace=true"
+          fi
+
+          if [ "${{ inputs.auto-prune }}" == "true" ]; then
+            command+=" --auto-prune"
+          fi
+
+          if [ "${{ inputs.self-heal }}" == "true" ]; then
+            command+=" --self-heal"
+          fi
+
+          command+=" --sync-policy ${{ inputs.sync-policy }}"
+
+          echo "Creating/updating ArgoCD application..."
+          echo "Command: $command"
+          eval $command
+
+      - name: Wait for ArgoCD Application
+        if: ${{ inputs.argocd-wait }}
+        shell: bash
+        env:
+          ARGOCD_AUTH_TOKEN: ${{ secrets.argocd-auth-token }}
+          ARGOCD_GRPC_KEEP_ALIVE_MIN: ${{ inputs.grpc-keep-alive-min }}
+        run: |
+          command="argocd app wait ${{ inputs.app-namespace }}/${{ inputs.environment }}-${{ inputs.application-name }} \
+            --server ${{ inputs.argocd-server-url }} \
+            --health \
+            --sync \
+            --grpc-web \
+            --timeout ${{ inputs.argocd-wait-timeout }} \
+            ${{ inputs.argocd-wait-additional-args }}"
+
+          echo "Waiting for application to be healthy and synced..."
+          echo "Command: $command"
+          eval $command
+          echo "Application is healthy and synced!"
