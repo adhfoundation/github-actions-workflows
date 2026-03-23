@@ -155,6 +155,16 @@ jobs:
           echo "Command: $command"
           eval $command
 
+      - name: Sync ArgoCD Application
+        shell: bash
+        env:
+          ARGOCD_AUTH_TOKEN: ${{ secrets.argocd-auth-token }}
+          ARGOCD_GRPC_KEEP_ALIVE_MIN: ${{ inputs.grpc-keep-alive-min }}
+        run: |
+          argocd app sync ${{ inputs.app-namespace }}/${{ inputs.environment }}-${{ inputs.application-name }} \
+            --server ${{ inputs.argocd-server-url }} \
+            --grpc-web
+
       - name: Wait for ArgoCD Application
         if: ${{ inputs.argocd-wait }}
         shell: bash
