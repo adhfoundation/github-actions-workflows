@@ -64,6 +64,8 @@ on:
         required: false
       GITHUB_APP_PRIVATE_KEY:
         required: false
+      NPM_TOKEN:
+        required: false
 
 env:
   TERM: xterm-256color
@@ -214,6 +216,7 @@ jobs:
           build-args: |
             GH_ACCESS_TOKEN=${{ steps.app-token.outputs.token || secrets.GH_ACCESS_TOKEN }}
             PIP_EXTRA_INDEX_URL=${{ secrets.PIP_EXTRA_INDEX_URL }}
+            NPM_TOKEN=${{ secrets.NPM_TOKEN }}
             ${{ inputs.docker-build-args }}
 
       - name: Validate Docker Scout secrets
