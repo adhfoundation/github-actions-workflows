@@ -258,3 +258,4 @@ jobs:
           github-token: ${{ secrets.GH_SCOUT_ACCESS_TOKEN }}
           dockerhub-user: ${{ secrets.DOCKERHUB_USER }}
           dockerhub-password: ${{ secrets.DOCKERHUB_PASSWORD }}
+          
