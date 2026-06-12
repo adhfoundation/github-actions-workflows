@@ -60,27 +60,28 @@ adhfoundation/github-actions-workflows
 ### 4.1 Build de Imagens Docker
 
 #### `build-image-to-ecr.yml` (v1)
-Build e push de imagem para ECR com autenticação OIDC.
+Build e push de imagem para ECR com autenticação OIDC e scan Trivy.
 
 | Campo | Detalhe |
 |---|---|
 | Inputs obrigatórios | `aws-creds-role-to-assume`, `aws-region`, `docker-tag`, `ecr-url`, `ecr-repo` |
-| Inputs opcionais | `docker-build-context`, `docker-file-path`, `docker-build-target`, `docker-build-args` |
+| Inputs opcionais | `docker-build-context`, `docker-file-path`, `docker-build-target`, `docker-build-args`, `scan-image`, `trivy-severity`, `trivy-fail-on-findings` |
 | Secrets opcionais | `PIP_EXTRA_INDEX_URL`, `GH_ACCESS_TOKEN`, variáveis `NEXT_PUBLIC_*` |
 | Runner | `ubuntu-22.04` |
 | Timeout | 30 minutos |
+| Scan | Trivy roda por default (`scan-image: true`); resultados sobem ao GitHub Security via SARIF |
 
 #### `build-image-to-ecr-v2.yaml` (v2 — recomendado)
-Versão evoluída com Docker Scout para análise de vulnerabilidades.
+Versão evoluída com scan Trivy integrado, GitHub App JWT para pacotes privados e suporte a ECR público.
 
 | Campo | Detalhe |
 |---|---|
 | Inputs obrigatórios | `docker-tag`, `environment` |
-| Diferenciais v2 | Docker Scout scanning, GitHub App JWT para pacotes privados, suporte a ECR público |
-| Secrets para Scout | `GH_SCOUT_ACCESS_TOKEN`, `DOCKERHUB_USER`, `DOCKERHUB_PASSWORD` |
+| Inputs de scan | `scan-image` (default `true`), `trivy-severity` (default `CRITICAL,HIGH`), `trivy-fail-on-findings` (default `false`) |
+| Secrets obrigatórios | Nenhum além do `GITHUB_TOKEN` nativo |
 | Secrets opcionais | `NPM_TOKEN`, credenciais GitHub App |
-| Variáveis de ambiente | `vars.ECR_URL`, `vars.ECR_REPO` (configuradas por environment) |
-| Comportamento | Comenta resultado do Scout em PRs automaticamente |
+| Variáveis de ambiente | `vars.ECR_URL`, `vars.ECR_REPO`, `vars.AWS_CREDS_ROLE_TO_ASSUME`, `vars.AWS_REGION` (via GitHub Environment) |
+| Scan | Trivy escaneia a imagem no ECR usando as credenciais AWS do job; SARIF enviado ao GitHub Code Scanning — anotações aparecem automaticamente em PRs sem configuração adicional nos repositórios chamadores |
 
 ---
 
@@ -286,7 +287,8 @@ uses: adhfoundation/github-actions-workflows/.github/workflows/deploy-argocd-v4.
 | `docker/setup-qemu-action` | v3 | Builds multi-plataforma |
 | `docker/setup-buildx-action` | v3 | BuildKit avançado |
 | `docker/build-push-action` | v5 | Build e push de imagens |
-| `docker/scout-action` | latest | Análise de vulnerabilidades |
+| `aquasecurity/trivy-action` | v0.36.0 | Scan de vulnerabilidades (OS + libs) |
+| `github/codeql-action/upload-sarif` | v3 | Upload de resultados SARIF ao GitHub Security |
 | `aws-actions/configure-aws-credentials` | v4 | Autenticação OIDC AWS |
 | `aws-actions/amazon-ecr-login` | v2 | Login no ECR |
 | `FairwindsOps/pluto` | v5 | Detecção de APIs K8s depreciadas |
