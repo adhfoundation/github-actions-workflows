@@ -38,12 +38,22 @@ on:
         required: false
         type: boolean
         default: true
-        description: Scan image with docker scout
+        description: Scan image with Trivy after build
+      trivy-severity:
+        required: false
+        type: string
+        default: 'CRITICAL,HIGH'
+        description: Comma-separated severity levels to report (UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL)
+      trivy-fail-on-findings:
+        required: false
+        type: boolean
+        default: false
+        description: Fail the build when vulnerabilities matching trivy-severity are found
       scout-command:
         required: false
         type: string
         default: quickview,cves,recommendations
-        description: Scout command to run e.g. quickview,cves,recommendations,sbom,environment,compare
+        description: 'Deprecated: kept for backward compatibility, no longer used'
 
     secrets:
       GH_SCOUT_ACCESS_TOKEN:
@@ -80,6 +90,7 @@ jobs:
       contents: read
       id-token: write
       pull-requests: write
+      security-events: write
     steps:
       - name: Validate inputs
         run: |
@@ -219,42 +230,30 @@ jobs:
             NPM_TOKEN=${{ secrets.NPM_TOKEN }}
             ${{ inputs.docker-build-args }}
 
-      - name: Validate Docker Scout secrets
-        if: ${{ inputs.scan-image == true }}
+      - name: Scan image with Trivy
+        if: inputs.scan-image == true
+        id: trivy-scan
         continue-on-error: true
-        run: |
-          missing=0
-          if [ -z "${{ secrets.GH_SCOUT_ACCESS_TOKEN }}" ]; then
-            echo "Error: GH_SCOUT_ACCESS_TOKEN secret is required for Docker Scout scan."
-            missing=1
-          fi
-          if [ -z "${{ secrets.DOCKERHUB_USER }}" ]; then
-            echo "Error: DOCKERHUB_USER secret is required for Docker Scout scan."
-            missing=1
-          fi
-          if [ -z "${{ secrets.DOCKERHUB_PASSWORD }}" ]; then
-            echo "Error: DOCKERHUB_PASSWORD secret is required for Docker Scout scan."
-            missing=1
-          fi
-          if [ "$missing" -eq 1 ]; then
-            echo
-            echo "Exemplo de uso no workflow da aplicação:"
-            echo
-            echo "  secrets:"
-            echo "    GH_SCOUT_ACCESS_TOKEN: \${{ secrets.GITHUB_TOKEN }}"
-            echo "    DOCKERHUB_USER: \${{ secrets.DOCKERHUB_USER }}"
-            echo "    DOCKERHUB_PASSWORD: \${{ secrets.DOCKERHUB_PASSWORD }}"
-            exit 1
-          fi
-
-      - name: Scan Docker Scout
-        if: ${{ inputs.scan-image == true }}
-        continue-on-error: true
-        uses: docker/scout-action@v1
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
-          command: ${{ inputs.scout-command }}
-          write-comment: ${{ github.event_name == 'pull_request' }}
-          image: ${{ vars.ECR_URL }}/${{ vars.ECR_REPO }}:${{ inputs.docker-tag }}
-          github-token: ${{ secrets.GH_SCOUT_ACCESS_TOKEN }}
-          dockerhub-user: ${{ secrets.DOCKERHUB_USER }}
-          dockerhub-password: ${{ secrets.DOCKERHUB_PASSWORD }}
+          image-ref: ${{ vars.ECR_URL }}/${{ vars.ECR_REPO }}:${{ inputs.docker-tag }}
+          format: sarif
+          output: trivy-results.sarif
+          severity: ${{ inputs.trivy-severity }}
+          exit-code: ${{ inputs.trivy-fail-on-findings == true && '1' || '0' }}
+          ignore-unfixed: true
+          vuln-type: os,library
+
+      - name: Upload Trivy results to GitHub Security
+        if: inputs.scan-image == true && !cancelled()
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy
+
+      - name: Fail build on findings
+        if: inputs.scan-image == true && inputs.trivy-fail-on-findings == true && steps.trivy-scan.outcome == 'failure'
+        run: |
+          echo "::error::Trivy found vulnerabilities with severity ${{ inputs.trivy-severity }}. Review the Security tab for details."
+          exit 1
