@@ -51,12 +51,6 @@ on:
         type: string
         default: 'CRITICAL,HIGH'
         description: Comma-separated severity levels to report (UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL)
-      trivy-fail-on-findings:
-        required: false
-        type: boolean
-        default: false
-        description: Fail the build when vulnerabilities matching trivy-severity are found
-
     secrets:
       PIP_EXTRA_INDEX_URL:
         required: false
@@ -122,23 +116,72 @@ jobs:
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: ${{ inputs.ecr-url }}/${{ inputs.ecr-repo }}:${{ inputs.docker-tag }}
-          format: sarif
-          output: trivy-results.sarif
+          format: table
+          output: trivy-results.txt
           severity: ${{ inputs.trivy-severity }}
-          exit-code: ${{ inputs.trivy-fail-on-findings == true && '1' || '0' }}
+          exit-code: '1'
           ignore-unfixed: true
           vuln-type: os,library
 
-      - name: Upload Trivy results to GitHub Security
+      - name: Publish Trivy results to job summary
         if: inputs.scan-image == true && !cancelled()
         continue-on-error: true
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: trivy-results.sarif
-          category: trivy
-
-      - name: Fail build on findings
-        if: inputs.scan-image == true && inputs.trivy-fail-on-findings == true && steps.trivy-scan.outcome == 'failure'
         run: |
-          echo "::error::Trivy found vulnerabilities with severity ${{ inputs.trivy-severity }}. Review the Security tab for details."
+          echo "## Trivy Scan — \`${{ inputs.ecr-url }}/${{ inputs.ecr-repo }}:${{ inputs.docker-tag }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f trivy-results.txt ]; then
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            cat trivy-results.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          else
+            echo "_Trivy não gerou saída._" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Comment Trivy results on PR
+        if: inputs.scan-image == true && github.event_name == 'pull_request' && !cancelled()
+        continue-on-error: true
+        uses: actions/github-script@v7
+        env:
+          IMAGE_REF: ${{ inputs.ecr-url }}/${{ inputs.ecr-repo }}:${{ inputs.docker-tag }}
+          SEVERITY: ${{ inputs.trivy-severity }}
+        with:
+          script: |
+            const fs = require('fs');
+            const imageRef = process.env.IMAGE_REF;
+            const severity = process.env.SEVERITY;
+            const raw = fs.existsSync('trivy-results.txt')
+              ? fs.readFileSync('trivy-results.txt', 'utf8')
+              : '_Trivy não gerou saída._';
+            const MAX = 60000;
+            const output = raw.length > MAX
+              ? raw.substring(0, MAX) + '\n...(truncado — veja o job summary para o relatório completo)'
+              : raw;
+            const marker = '<!-- trivy-scan -->';
+            const body = `${marker}\n## Trivy Scan — \`${imageRef}\`\n> Severidades: \`${severity}\` · apenas vulnerabilidades com fix disponível\n\n\`\`\`\n${output}\n\`\`\``;
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find(c => c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
+
+      - name: Block PR on findings
+        if: inputs.scan-image == true && github.event_name == 'pull_request' && steps.trivy-scan.outcome == 'failure'
+        run: |
+          echo "::error::Trivy encontrou vulnerabilidades ${{ inputs.trivy-severity }} na imagem. Revise o sumário do job para detalhes."
           exit 1
