@@ -77,8 +77,6 @@ jobs:
     permissions:
       id-token: write
       contents: read
-      pull-requests: write
-      security-events: write
     steps:
       - name: Checkout
         uses: actions/checkout@v3
