@@ -10,7 +10,7 @@ on:
       k8s-version:
         required: false
         type: string
-        default: 1.26
+        default: "1.26"
 
 env:
   TERM: xterm-256color
