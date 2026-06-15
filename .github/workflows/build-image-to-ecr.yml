@@ -116,8 +116,8 @@ jobs:
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: ${{ inputs.ecr-url }}/${{ inputs.ecr-repo }}:${{ inputs.docker-tag }}
-          format: table
-          output: trivy-results.txt
+          format: json
+          output: trivy-results.json
           severity: ${{ inputs.trivy-severity }}
           exit-code: '1'
           ignore-unfixed: true
@@ -126,16 +126,44 @@ jobs:
       - name: Publish Trivy results to job summary
         if: inputs.scan-image == true && !cancelled()
         continue-on-error: true
+        env:
+          IMAGE_REF: ${{ inputs.ecr-url }}/${{ inputs.ecr-repo }}:${{ inputs.docker-tag }}
+          SEVERITY: ${{ inputs.trivy-severity }}
         run: |
-          echo "## Trivy Scan — \`${{ inputs.ecr-url }}/${{ inputs.ecr-repo }}:${{ inputs.docker-tag }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          if [ -f trivy-results.txt ]; then
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            cat trivy-results.txt >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-          else
+          if [ ! -f trivy-results.json ]; then
+            echo "## Trivy Scan" >> $GITHUB_STEP_SUMMARY
             echo "_Trivy não gerou saída._" >> $GITHUB_STEP_SUMMARY
+            exit 0
           fi
+          CRITICAL=$(jq '[.Results // [] | .[].Vulnerabilities // [] | .[] | select(.Severity == "CRITICAL")] | length' trivy-results.json)
+          HIGH=$(jq '[.Results // [] | .[].Vulnerabilities // [] | .[] | select(.Severity == "HIGH")] | length' trivy-results.json)
+          MEDIUM=$(jq '[.Results // [] | .[].Vulnerabilities // [] | .[] | select(.Severity == "MEDIUM")] | length' trivy-results.json)
+          LOW=$(jq '[.Results // [] | .[].Vulnerabilities // [] | .[] | select(.Severity == "LOW")] | length' trivy-results.json)
+          TOTAL=$(jq '[.Results // [] | .[].Vulnerabilities // [] | .[]] | length' trivy-results.json)
+          {
+            echo "## Trivy Scan — \`${IMAGE_REF}\`"
+            echo "> Severidades: \`${SEVERITY}\` · apenas vulnerabilidades com fix disponível"
+            echo ""
+            echo "| Severidade | Total |"
+            echo "|---|---|"
+            echo "| 🔴 Critical | ${CRITICAL} |"
+            echo "| 🟠 High | ${HIGH} |"
+            echo "| 🟡 Medium | ${MEDIUM} |"
+            echo "| 🔵 Low | ${LOW} |"
+            echo ""
+            if [ "$TOTAL" -eq 0 ]; then
+              echo "✅ Nenhuma vulnerabilidade encontrada com fix disponível."
+            else
+              echo "### Vulnerabilidades"
+              echo ""
+              echo "| CVE | Severidade | Pacote | Versão instalada | Fix disponível |"
+              echo "|---|---|---|---|---|"
+              jq -r '
+                .Results // [] | .[].Vulnerabilities // [] | .[] |
+                "| \(.VulnerabilityID) | \(.Severity) | \(.PkgName) | \(.InstalledVersion) | \(if .FixedVersion then .FixedVersion else "—" end) |"
+              ' trivy-results.json
+            fi
+          } >> $GITHUB_STEP_SUMMARY
 
       - name: Comment Trivy results on PR
         if: inputs.scan-image == true && github.event_name == 'pull_request' && !cancelled()
@@ -149,15 +177,31 @@ jobs:
             const fs = require('fs');
             const imageRef = process.env.IMAGE_REF;
             const severity = process.env.SEVERITY;
-            const raw = fs.existsSync('trivy-results.txt')
-              ? fs.readFileSync('trivy-results.txt', 'utf8')
-              : '_Trivy não gerou saída._';
-            const MAX = 60000;
-            const output = raw.length > MAX
-              ? raw.substring(0, MAX) + '\n...(truncado — veja o job summary para o relatório completo)'
-              : raw;
+            if (!fs.existsSync('trivy-results.json')) return;
+            const data = JSON.parse(fs.readFileSync('trivy-results.json', 'utf8'));
+            const vulns = (data.Results || []).flatMap(r => r.Vulnerabilities || []);
+            const count = s => vulns.filter(v => v.Severity === s).length;
             const marker = '<!-- trivy-scan -->';
-            const body = `${marker}\n## Trivy Scan — \`${imageRef}\`\n> Severidades: \`${severity}\` · apenas vulnerabilidades com fix disponível\n\n\`\`\`\n${output}\n\`\`\``;
+            let body = `${marker}\n## Trivy Scan — \`${imageRef}\`\n`;
+            body += `> Severidades: \`${severity}\` · apenas vulnerabilidades com fix disponível\n\n`;
+            body += `| Severidade | Total |\n|---|---|\n`;
+            body += `| 🔴 Critical | ${count('CRITICAL')} |\n`;
+            body += `| 🟠 High | ${count('HIGH')} |\n`;
+            body += `| 🟡 Medium | ${count('MEDIUM')} |\n`;
+            body += `| 🔵 Low | ${count('LOW')} |\n\n`;
+            if (vulns.length === 0) {
+              body += `✅ Nenhuma vulnerabilidade encontrada com fix disponível.`;
+            } else {
+              body += `### Vulnerabilidades\n\n`;
+              body += `| CVE | Severidade | Pacote | Versão instalada | Fix disponível |\n|---|---|---|---|---|\n`;
+              const rows = vulns.map(v =>
+                `| ${v.VulnerabilityID} | ${v.Severity} | ${v.PkgName} | ${v.InstalledVersion} | ${v.FixedVersion || '—'} |`
+              ).join('\n');
+              const MAX = 55000;
+              body += body.length + rows.length > MAX
+                ? rows.substring(0, MAX - body.length) + '\n\n_...truncado. Veja o job summary para o relatório completo._'
+                : rows;
+            }
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
