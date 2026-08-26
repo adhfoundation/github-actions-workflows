@@ -38,25 +38,24 @@ on:
         required: false
         type: boolean
         default: true
-        description: Scan image with docker scout
-      scout-command:
+        description: Scan image with Trivy
+      trivy-severity:
         required: false
         type: string
-        default: quickview,cves,recommendations
-        description: Scout command to run e.g. quickview,cves,recommendations,sbom,environment,compare
+        default: ''
+        description: Comma-separated severities to report, e.g. "CRITICAL,HIGH". Empty reports every severity.
+      trivy-exit-code:
+        required: false
+        type: string
+        default: '0'
+        description: Exit code Trivy returns when it finds a vulnerability. "0" keeps the scan non-blocking; "1" fails the step on any match.
 
     secrets:
-      GH_SCOUT_ACCESS_TOKEN:
-        required: false
       GH_ACCESS_TOKEN:
         required: false
       PIP_EXTRA_INDEX_URL:
         required: false
       REQUIREMENTS:
-        required: false
-      DOCKERHUB_USER:
-        required: false
-      DOCKERHUB_PASSWORD:
         required: false
       GITHUB_APP_APPID:
         required: false
@@ -219,42 +218,74 @@ jobs:
             NPM_TOKEN=${{ secrets.NPM_TOKEN }}
             ${{ inputs.docker-build-args }}
 
-      - name: Validate Docker Scout secrets
+      # format: json (em vez de table) + output pra arquivo: evita a tabela gigante do Trivy
+      # poluindo o log do step — o step abaixo lê esse arquivo e monta um resumo legível no
+      # Job Summary. exit-code default "0" mantém o scan não-bloqueante (visibilidade, sem
+      # travar o pipeline), igual o Docker Scout que ele substitui.
+      - name: Scan Trivy
         if: ${{ inputs.scan-image == true }}
         continue-on-error: true
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ vars.ECR_URL }}/${{ vars.ECR_REPO }}:${{ inputs.docker-tag }}
+          format: json
+          output: trivy-results.json
+          vuln-type: os,library
+          severity: ${{ inputs.trivy-severity }}
+          exit-code: ${{ inputs.trivy-exit-code }}
+
+      # if: always() é essencial aqui: se trivy-exit-code for "1" e houver vulnerabilidade, o
+      # step acima falha — sem always(), o resumo nunca seria publicado na hora em que mais
+      # importaria mostrá-lo.
+      - name: Publicar resumo do Trivy no Job Summary
+        if: ${{ always() && inputs.scan-image == true }}
         run: |
-          missing=0
-          if [ -z "${{ secrets.GH_SCOUT_ACCESS_TOKEN }}" ]; then
-            echo "Error: GH_SCOUT_ACCESS_TOKEN secret is required for Docker Scout scan."
-            missing=1
-          fi
-          if [ -z "${{ secrets.DOCKERHUB_USER }}" ]; then
-            echo "Error: DOCKERHUB_USER secret is required for Docker Scout scan."
-            missing=1
-          fi
-          if [ -z "${{ secrets.DOCKERHUB_PASSWORD }}" ]; then
-            echo "Error: DOCKERHUB_PASSWORD secret is required for Docker Scout scan."
-            missing=1
-          fi
-          if [ "$missing" -eq 1 ]; then
-            echo
-            echo "Exemplo de uso no workflow da aplicação:"
-            echo
-            echo "  secrets:"
-            echo "    GH_SCOUT_ACCESS_TOKEN: \${{ secrets.GITHUB_TOKEN }}"
-            echo "    DOCKERHUB_USER: \${{ secrets.DOCKERHUB_USER }}"
-            echo "    DOCKERHUB_PASSWORD: \${{ secrets.DOCKERHUB_PASSWORD }}"
-            exit 1
+          if [ ! -f trivy-results.json ]; then
+            echo "::warning::trivy-results.json não foi encontrado — resumo não gerado."
+            exit 0
           fi
 
-      - name: Scan Docker Scout
-        if: ${{ inputs.scan-image == true }}
-        continue-on-error: true
-        uses: docker/scout-action@v1
-        with:
-          command: ${{ inputs.scout-command }}
-          write-comment: ${{ github.event_name == 'pull_request' }}
-          image: ${{ vars.ECR_URL }}/${{ vars.ECR_REPO }}:${{ inputs.docker-tag }}
-          github-token: ${{ secrets.GH_SCOUT_ACCESS_TOKEN }}
-          dockerhub-user: ${{ secrets.DOCKERHUB_USER }}
-          dockerhub-password: ${{ secrets.DOCKERHUB_PASSWORD }}
+          {
+            echo "## 🔍 Trivy — scan de imagem"
+            echo ""
+            echo "**Imagem:** \`${{ vars.ECR_URL }}/${{ vars.ECR_REPO }}:${{ inputs.docker-tag }}\`"
+            echo ""
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          TOTAL=$(jq '[.Results[]?.Vulnerabilities[]?] | length' trivy-results.json)
+
+          if [ "$TOTAL" -eq 0 ]; then
+            echo "✅ Nenhuma vulnerabilidade encontrada." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          {
+            echo "**$TOTAL vulnerabilidade(s) encontrada(s):**"
+            echo ""
+            for SEV in CRITICAL HIGH MEDIUM LOW UNKNOWN; do
+              COUNT=$(jq --arg sev "$SEV" '[.Results[]?.Vulnerabilities[]? | select(.Severity == $sev)] | length' trivy-results.json)
+              if [ "$COUNT" -gt 0 ]; then
+                echo "- **$SEV:** $COUNT"
+              fi
+            done
+            echo ""
+            echo "| Severidade | Pacote | Instalada | Corrige em | CVE |"
+            echo "|---|---|---|---|---|"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          jq -r '
+            [.Results[]? | .Vulnerabilities[]? |
+              [.Severity, .PkgName, .InstalledVersion,
+                (if (.FixedVersion // "") == "" then "-" else .FixedVersion end),
+                (if .PrimaryURL then "[" + .VulnerabilityID + "](" + .PrimaryURL + ")" else .VulnerabilityID end)]
+            ]
+            | sort_by(
+                if .[0] == "CRITICAL" then 0
+                elif .[0] == "HIGH" then 1
+                elif .[0] == "MEDIUM" then 2
+                elif .[0] == "LOW" then 3
+                else 4 end
+              )
+            | .[]
+            | "| " + .[0] + " | " + .[1] + " | " + .[2] + " | " + .[3] + " | " + .[4] + " |"
+          ' trivy-results.json >> "$GITHUB_STEP_SUMMARY"
