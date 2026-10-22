@@ -62,6 +62,7 @@ jobs:
     permissions:
       id-token: write
       contents: read
+      packages: read # needed to install private packages from GitHub Packages with GITHUB_TOKEN
       pull-requests: none
     steps:
       - name: Checkout
