@@ -79,6 +79,7 @@ jobs:
     permissions:
       contents: read
       id-token: write
+      packages: read # needed to install private packages from GitHub Packages with GITHUB_TOKEN
       pull-requests: write
     steps:
       - name: Validate inputs
