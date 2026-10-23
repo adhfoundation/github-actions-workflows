@@ -64,8 +64,8 @@ on:
       git-runner-container:
         required: false
         type: string
-        description: Github runner container
-        default: "ghcr.io/adhfoundation/cd-argocd:2.9.0@sha256:95e7cf0ab838c6c4a6c4fb355ec911292c5ee4b526bc335b3053f1554e143d16"
+        description: Github runner container. Empty uses cd-argocd from the caller org GHCR (adhfoundation, iclinic), falling back to ECR Public
+        default: ""
 
       image-tag:
         required: true
@@ -92,10 +92,16 @@ jobs:
     runs-on: ${{ inputs.runs-on }}
     environment: ${{ inputs.environment }}
     container:
-      image: ${{ inputs.git-runner-container }}
+      # adhfoundation: private package, pulled with the caller GITHUB_TOKEN (needs packages: read)
+      # iclinic: public package, anonymous pull
+      image: >-
+        ${{ inputs.git-runner-container
+        || (github.repository_owner == 'adhfoundation' && 'ghcr.io/adhfoundation/cd-argocd:2.9.0@sha256:95e7cf0ab838c6c4a6c4fb355ec911292c5ee4b526bc335b3053f1554e143d16')
+        || (github.repository_owner == 'iclinic' && 'ghcr.io/iclinic/cd-argocd:2.9.0@sha256:95e7cf0ab838c6c4a6c4fb355ec911292c5ee4b526bc335b3053f1554e143d16')
+        || 'public.ecr.aws/u1y2d3y2/cd-argocd:2.9.0' }}
       credentials:
-        username: ${{ startsWith(inputs.git-runner-container, 'ghcr.io/') && github.actor || '' }}
-        password: ${{ startsWith(inputs.git-runner-container, 'ghcr.io/') && github.token || '' }}
+        username: ${{ github.repository_owner == 'adhfoundation' && (inputs.git-runner-container == '' || startsWith(inputs.git-runner-container, 'ghcr.io/adhfoundation/')) && github.actor || '' }}
+        password: ${{ github.repository_owner == 'adhfoundation' && (inputs.git-runner-container == '' || startsWith(inputs.git-runner-container, 'ghcr.io/adhfoundation/')) && github.token || '' }}
     env:
       NAMESPACE: ${{ inputs.namespace }}
     steps:
