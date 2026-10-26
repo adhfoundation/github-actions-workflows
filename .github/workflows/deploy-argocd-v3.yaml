@@ -64,8 +64,8 @@ on:
       git-runner-container:
         required: false
         type: string
-        description: Github runner container. Empty uses cd-argocd from the caller org GHCR (adhfoundation, iclinic), falling back to ECR Public
-        default: ""
+        description: Github runner container
+        default: "ghcr.io/iclinic/cd-argocd:2.9.0@sha256:95e7cf0ab838c6c4a6c4fb355ec911292c5ee4b526bc335b3053f1554e143d16"
 
       image-tag:
         required: true
@@ -91,18 +91,8 @@ jobs:
   deploy:
     runs-on: ${{ inputs.runs-on }}
     environment: ${{ inputs.environment }}
-    # adhfoundation: private package, pulled with the caller GITHUB_TOKEN (needs packages: read).
-    # Every other case is a plain image string: credentials cannot be set to empty values,
-    # so the whole block must be absent when no login is needed.
-    # iclinic: public package, anonymous pull. Other orgs: ECR Public.
-    container: >-
-      ${{ (github.repository_owner == 'adhfoundation' && (inputs.git-runner-container == '' || startsWith(inputs.git-runner-container, 'ghcr.io/adhfoundation/')))
-      && fromJSON(format('{{"image":"{0}","credentials":{{"username":"{1}","password":"{2}"}}}}',
-        inputs.git-runner-container || 'ghcr.io/adhfoundation/cd-argocd:2.9.0@sha256:95e7cf0ab838c6c4a6c4fb355ec911292c5ee4b526bc335b3053f1554e143d16',
-        github.actor, github.token))
-      || inputs.git-runner-container
-      || (github.repository_owner == 'iclinic' && 'ghcr.io/iclinic/cd-argocd:2.9.0@sha256:95e7cf0ab838c6c4a6c4fb355ec911292c5ee4b526bc335b3053f1554e143d16')
-      || 'public.ecr.aws/u1y2d3y2/cd-argocd:2.9.0@sha256:95e7cf0ab838c6c4a6c4fb355ec911292c5ee4b526bc335b3053f1554e143d16' }}
+    container:
+      image: ${{ inputs.git-runner-container }}
     env:
       NAMESPACE: ${{ inputs.namespace }}
     steps:
