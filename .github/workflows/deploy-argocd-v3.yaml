@@ -98,7 +98,7 @@ jobs:
         ${{ inputs.git-runner-container
         || (github.repository_owner == 'adhfoundation' && 'ghcr.io/adhfoundation/cd-argocd:2.9.0@sha256:95e7cf0ab838c6c4a6c4fb355ec911292c5ee4b526bc335b3053f1554e143d16')
         || (github.repository_owner == 'iclinic' && 'ghcr.io/iclinic/cd-argocd:2.9.0@sha256:95e7cf0ab838c6c4a6c4fb355ec911292c5ee4b526bc335b3053f1554e143d16')
-        || 'public.ecr.aws/u1y2d3y2/cd-argocd:2.9.0' }}
+        || 'public.ecr.aws/u1y2d3y2/cd-argocd:2.9.0@sha256:95e7cf0ab838c6c4a6c4fb355ec911292c5ee4b526bc335b3053f1554e143d16' }}
       credentials:
         username: ${{ github.repository_owner == 'adhfoundation' && (inputs.git-runner-container == '' || startsWith(inputs.git-runner-container, 'ghcr.io/adhfoundation/')) && github.actor || '' }}
         password: ${{ github.repository_owner == 'adhfoundation' && (inputs.git-runner-container == '' || startsWith(inputs.git-runner-container, 'ghcr.io/adhfoundation/')) && github.token || '' }}
